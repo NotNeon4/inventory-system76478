@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jigsaw Inventory Config</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* Light Mode Colors */
+      --primary-blue: #007AFF;
+      --text-dark: #1D1D1F;
+      --text-medium: #6E6E73;
+      --background-light: #F5F5F7;
+      --white: #FFFFFF;
+      --border-light: #E8E8ED;
+      --success-green: #34C759;
+      --error-red: #FF3B30;
+      --warning-orange: #FF9500;
+      --table-stripe: #FDFDFE; /* For striped table rows */
+      --table-hover: #F0F0F2; /* For table row hover */
+      --button-hover-bg: rgba(0, 122, 255, 0.08); /* Blue button hover */
+    }
+
+    /* Dark Mode Colors */
+    body.dark-mode {
+      --primary-blue: #0A84FF; /* Slightly different blue for dark mode */
+      --text-dark: #F5F5F7; /* Light text on dark background */
+      --text-medium: #AEAEB2; /* Lighter medium text */
+      --background-light: #1C1C1E; /* Dark background */
+      --white: #2C2C2E; /* Darker "white" for elements like containers/headers */
+      --border-light: #48484A; /* Darker border */
+      --success-green: #30D158;
+      --error-red: #FF453A;
+      --warning-orange: #FF9F0A;
+      --table-stripe: #2C2C2E; /* Dark table stripe */
+      --table-hover: #3A3A3C; /* Dark table hover */
+      --button-hover-bg: rgba(10, 132, 255, 0.2); /* Dark blue button hover */
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: var(--background-light);
+      color: var(--text-dark);
+      line-height: 1.5;
+    }
+
+    .header {
+      background-color: var(--white);
+      padding: 15px 24px;
+      border-bottom: 1px solid var(--border-light);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .header .logo {
+      height: 35px;
+      display: block;
+    }
+    .header-nav button {
+      background: none;
+      border: none;
+      color: var(--primary-blue);
+      font-size: 16px;
+      font-weight: 500;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+      margin-left: 10px;
+    }
+    .header-nav button:hover {
+      background-color: var(--button-hover-bg);
+    }
+
+    .container {
+      max-width: 960px;
+      margin: 24px auto;
+      padding: 24px;
+      background-color: var(--white);
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+
+    .section-title {
+      font-size: 24px;
+      font-weight: 600;
+      color: var(--text-dark);
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: var(--text-dark);
+    }
+    .form-group input[type="text"],
+    .form-group input[type="number"],
+    .form-group input[type="email"] {
+      width: calc(100% - 24px); /* Adjust for padding */
+      padding: 12px;
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      font-size: 16px;
+      background-color: var(--background-light);
+      color: var(--text-dark);
+    }
+    .form-group input[type="text"]:focus,
+    .form-group input[type="number"]:focus,
+    .form-group input[type="email"]:focus {
+      outline: none;
+      border-color: var(--primary-blue);
+      box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.2);
+    }
+
+    .button-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+      justify-content: flex-end;
+    }
+    .button-group button {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.2s ease, transform 0.1s ease;
+    }
+    .button-group button.primary {
+      background-color: var(--primary-blue);
+      color: var(--white);
+    }
+    .button-group button.primary:hover {
+      background-color: #006DED; /* Darker blue on hover */
+      transform: translateY(-1px);
+    }
+    .button-group button.secondary {
+      background-color: var(--background-light);
+      color: var(--text-dark);
+      border: 1px solid var(--border-light);
+    }
+    .button-group button.secondary:hover {
+      background-color: #E0E0E5; /* Slightly darker light background */
+      transform: translateY(-1px);
+    }
+
+    #messages {
+      margin-top: 24px;
+      padding: 16px;
+      border-radius: 8px;
+      text-align: center;
+      font-weight: 500;
+    }
+    .message.success {
+      background-color: rgba(52, 199, 89, 0.1);
+      color: var(--success-green);
+      border: 1px solid var(--success-green);
+    }
+    .dark-mode .message.success { /* Dark mode specific message colors */
+        background-color: rgba(48, 209, 88, 0.2);
+    }
+    .message.error {
+      background-color: rgba(255, 59, 48, 0.1);
+      color: var(--error-red);
+      border: 1px solid var(--error-red);
+    }
+    .dark-mode .message.error { /* Dark mode specific message colors */
+        background-color: rgba(255, 69, 58, 0.2);
+    }
+    .message.info {
+      background-color: rgba(0, 122, 255, 0.1);
+      color: var(--primary-blue);
+      border: 1px solid var(--primary-blue);
+    }
+    .dark-mode .message.info { /* Dark mode specific message colors */
+        background-color: rgba(10, 132, 255, 0.2);
+    }
+
+    /* Table styles for config (if applicable) */
+    .config-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+    .config-table th, .config-table td {
+        border: 1px solid var(--border-light);
+        padding: 12px;
+        text-align: left;
+        vertical-align: top;
+        font-size: 15px;
+    }
+    .config-table th {
+        background-color: var(--background-light);
+        font-weight: 600;
+        color: var(--text-dark);
+    }
+    .config-table tr:nth-child(even) {
+        background-color: var(--table-stripe);
+    }
+    .config-table tr:hover {
+        background-color: var(--table-hover);
+    }
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      .header {
+        flex-direction: column;
+        text-align: center;
+        gap: 10px;
+      }
+      .container {
+        margin: 15px;
+        padding: 15px;
+      }
+      .button-group {
+        flex-direction: column;
+      }
+      .button-group button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-nav">
+      <button onclick="google.script.run.withSuccessHandler(function(url) { window.open(url, '_top'); }).getIndexFileUrl()">Back to Portal</button>
+    </div>
+    <div style="flex-grow: 1; text-align: center;">
+        <h1 style="margin:0; font-size: 28px; color: var(--text-dark);">Configuration Settings</h1>
+    </div>
+    <div class="header-nav">
+        <button id="darkModeToggle" class="header-nav-button">Toggle Dark Mode</button>
+    </div>
+</div>
+
+  <div class="container">
+    <h2 class="section-title">General Settings</h2>
+
+    <div class="form-group">
+      <label for="urgentThreshold">Urgent Stock Threshold:</label>
+      <input type="number" id="urgentThreshold" value="0">
+    </div>
+
+    <div class="form-group">
+      <label for="lowThreshold">Low Stock Threshold:</label>
+      <input type="number" id="lowThreshold" value="5">
+    </div>
+
+    <div class="form-group">
+      <label for="defaultEmails">Default Notification Emails (comma-separated):</label>
+      <input type="text" id="defaultEmails" placeholder="email1@example.com, email2@example.com">
+    </div>
+
+    <div class="button-group">
+        <button type="button" class="primary" onclick="saveConfig()">Save Settings</button>
+        <button type="button" class="secondary" onclick="loadConfig()">Load Settings</button>
+    </div>
+
+    <div id="messages"></div>
+
+    <h2 class="section-title" style="margin-top: 40px;">Advanced Settings</h2>
+    <table class="config-table">
+        <thead>
+            <tr>
+                <th>Setting Name</th>
+                <th>Value</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Setting A</td>
+                <td>Value 1</td>
+                <td>Description for setting A</td>
+            </tr>
+            <tr>
+                <td>Setting B</td>
+                <td>Value 2</td>
+                <td>Description for setting B</td>
+            </tr>
+        </tbody>
+    </table>
+
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Dark Mode Initialization
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme === 'dark') {
+        document.body.classList.add('dark-mode');
+      }
+      const darkModeToggle = document.getElementById('darkModeToggle');
+      if (darkModeToggle) {
+        darkModeToggle.addEventListener('click', function() {
+          document.body.classList.toggle('dark-mode');
+          if (document.body.classList.contains('dark-mode')) {
+            localStorage.setItem('theme', 'dark');
+          } else {
+            localStorage.setItem('theme', 'light');
+          }
+        });
+      }
+
+      // Load settings on page load
+      loadConfig();
+    });
+
+    function showMessage(msg, type) {
+      const messagesDiv = document.getElementById('messages');
+      messagesDiv.textContent = msg;
+      messagesDiv.className = 'message ' + type;
+      setTimeout(() => {
+        messagesDiv.textContent = '';
+        messagesDiv.className = 'message';
+      }, 5000);
+    }
+
+    // --- Implemented Functions for Config Page ---
+    function loadConfig() {
+        console.log("Loading config settings...");
+        showMessage('Loading settings...', 'info');
+        google.script.run
+            .withSuccessHandler(function(configData) {
+                document.getElementById('urgentThreshold').value = configData.urgentThreshold;
+                document.getElementById('lowThreshold').value = configData.lowThreshold;
+                document.getElementById('defaultEmails').value = configData.defaultEmails.join(', ');
+                showMessage('Settings loaded successfully.', 'success');
+            })
+            .withFailureHandler(function(error) {
+                showMessage('Error loading config: ' + error.message, 'error');
+                console.error('Error loading config:', error);
+            })
+            .getAppSettings(); // Call the Apps Script function
+    }
+
+    function saveConfig() {
+        console.log("Saving config settings...");
+        showMessage('Saving settings...', 'info');
+
+        const urgentThreshold = document.getElementById('urgentThreshold').value;
+        const lowThreshold = document.getElementById('lowThreshold').value;
+        const defaultEmails = document.getElementById('defaultEmails').value.split(',').map(e => e.trim()).filter(Boolean);
+
+        // Basic validation (optional, but recommended)
+        if (isNaN(parseInt(urgentThreshold)) || isNaN(parseInt(lowThreshold))) {
+            showMessage('Urgent and Low Thresholds must be numbers.', 'error');
+            return;
+        }
+
+        google.script.run
+            .withSuccessHandler(function() {
+                showMessage('Settings saved successfully!', 'success');
+            })
+            .withFailureHandler(function(error) {
+                showMessage('Error saving config: ' + error.message, 'error');
+                console.error('Error saving config:', error);
+            })
+            .saveAppSettings({
+                urgentThreshold: parseInt(urgentThreshold), // Ensure numbers are passed
+                lowThreshold: parseInt(lowThreshold),     // Ensure numbers are passed
+                defaultEmails: defaultEmails
+            }); // Call the Apps Script function
+    }
+  </script>
+</body>
+</html>
