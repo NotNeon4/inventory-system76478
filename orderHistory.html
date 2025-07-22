@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jigsaw Order History</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* CSS Variables from index.html for consistency */
+    :root {
+      --primary-blue: #007AFF;
+      --text-dark: #1D1D1F;
+      --text-medium: #6E6E73;
+      --background-light: #F5F5F7;
+      --white: #FFFFFF;
+      --border-light: #E8E8ED;
+      --success-green: #34C759;
+      --error-red: #FF3B30;
+      --warning-orange: #FF9500;
+      --table-stripe: #FDFDFE; /* For striped table rows */
+      --table-hover: #F0F0F2; /* For table row hover */
+      --button-hover-bg: rgba(0, 122, 255, 0.08); /* Blue button hover */
+    }
+
+    /* Dark Mode Colors (copied from index.html for consistency) */
+    body.dark-mode {
+      --primary-blue: #0A84FF;
+      --text-dark: #F5F5F7;
+      --text-medium: #AEAEB2;
+      --background-light: #1C1C1E;
+      --white: #2C2C2E;
+      --border-light: #48484A;
+      --success-green: #30D158;
+      --error-red: #FF453A;
+      --warning-orange: #FF9F0A;
+      --table-stripe: #2C2C2E;
+      --table-hover: #3A3A3C;
+      --button-hover-bg: rgba(10, 132, 255, 0.2);
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: var(--background-light);
+      color: var(--text-dark);
+      line-height: 1.5;
+    }
+
+    .header {
+      background-color: var(--white);
+      padding: 15px 24px;
+      border-bottom: 1px solid var(--border-light);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .header .logo {
+      height: 35px;
+      display: block;
+    }
+    .header-nav button {
+      background: none;
+      border: none;
+      color: var(--primary-blue);
+      font-size: 16px;
+      font-weight: 500;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+      margin-left: 10px;
+    }
+    .header-nav button:hover {
+      background-color: var(--button-hover-bg);
+    }
+
+    .container {
+      max-width: 960px;
+      margin: 24px auto;
+      padding: 24px;
+      background-color: var(--white);
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+      overflow-x: auto; /* For table responsiveness */
+    }
+
+    .section-title {
+      font-size: 24px;
+      font-weight: 600;
+      color: var(--text-dark);
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    /* Message Display (copied from index.html) */
+    #messages {
+      margin-top: 24px;
+      padding: 16px;
+      border-radius: 8px;
+      text-align: center;
+      font-weight: 500;
+      opacity: 0; /* Hidden by default for smooth transition */
+      transition: opacity 0.3s ease-in-out;
+    }
+    #messages.show { /* For visibility */
+        opacity: 1;
+    }
+    .message.success {
+      background-color: rgba(52, 199, 89, 0.1);
+      color: var(--success-green);
+      border: 1px solid var(--success-green);
+    }
+    .message.error {
+      background-color: rgba(255, 59, 48, 0.1);
+      color: var(--error-red);
+      border: 1px solid var(--error-red);
+    }
+    .message.info {
+      background-color: rgba(0, 122, 255, 0.1);
+      color: var(--primary-blue);
+      border: 1px solid var(--primary-blue);
+    }
+    /* Dark mode message colors */
+    body.dark-mode .message.success { background-color: rgba(48, 209, 88, 0.2); }
+    body.dark-mode .message.error { background-color: rgba(255, 69, 58, 0.2); }
+    body.dark-mode .message.info { background-color: rgba(10, 132, 255, 0.2); }
+
+
+    /* Order History Table Styling */
+    .order-history-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+        background-color: var(--white); /* Consistent with containers */
+        border-radius: 8px; /* Consistent with containers */
+        overflow: hidden; /* Ensures border-radius applies to table content */
+    }
+    body.dark-mode .order-history-table {
+        background-color: var(--background-dark); /* Darker table background */
+    }
+    .order-history-table th, .order-history-table td {
+        border: 1px solid var(--border-light);
+        padding: 12px;
+        text-align: left;
+        vertical-align: top;
+        font-size: 15px;
+        color: var(--text-dark); /* Consistent text color */
+    }
+    body.dark-mode .order-history-table th, body.dark-mode .order-history-table td {
+        border-color: var(--border-light); /* Dark mode border */
+    }
+    .order-history-table th {
+        background-color: var(--background-light); /* Header background */
+        font-weight: 600;
+        color: var(--text-dark);
+    }
+    body.dark-mode .order-history-table th {
+        background-color: var(--white); /* Darker header background */
+        color: var(--text-dark);
+    }
+    .order-history-table tr:nth-child(even) {
+        background-color: var(--table-stripe); /* Use variable for stripe */
+    }
+    .order-history-table tr:hover {
+        background-color: var(--table-hover); /* Use variable for hover */
+    }
+    
+    /* List styles within table cells */
+    .order-item-list, .email-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        font-size: 0.9em; /* Slightly smaller font for list items in table */
+    }
+    .order-item-list li, .email-list li {
+        margin-bottom: 4px; /* Reduced margin */
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start; /* Align to top if content wraps */
+        gap: 5px; /* Smaller gap */
+        word-break: break-word; /* Allow long words to break */
+        color: var(--text-medium); /* Lighter text color */
+    }
+    .order-item-list li:last-child, .email-list li:last-child {
+        margin-bottom: 0;
+    }
+    .order-item-list li strong { /* For item ID */
+        color: var(--text-dark);
+    }
+    .order-item-list li .item-name-qty { /* For item name and quantity */
+        flex-grow: 1; /* Allow to grow */
+    }
+    .item-notes-display { /* For item notes */
+        font-size: 0.8em;
+        font-style: italic;
+        color: var(--text-medium);
+        white-space: pre-wrap; /* Preserve formatting and break lines */
+    }
+    .email-list li span {
+        flex-grow: 1;
+        margin-right: 5px;
+    }
+    .order-item-list button, .email-list button {
+        background-color: var(--error-red); /* Use variable */
+        color: white;
+        border: none;
+        padding: 4px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.75em; /* Smaller font for buttons in lists */
+        transition: background-color 0.2s ease;
+        flex-shrink: 0; /* Prevent button from shrinking */
+    }
+    .order-item-list button:hover, .email-list button:hover {
+        background-color: #E63946;
+    }
+
+    .status-dropdown {
+        padding: 8px;
+        border-radius: 6px;
+        border: 1px solid var(--border-light);
+        font-size: 15px;
+        color: var(--text-dark);
+        background-color: var(--white);
+        cursor: pointer;
+    }
+    body.dark-mode .status-dropdown {
+        background-color: var(--background-dark);
+        color: var(--text-dark);
+        border-color: var(--border-light);
+    }
+    .status-dropdown:focus {
+        outline: none;
+        border-color: var(--primary-blue);
+        box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.2);
+    }
+
+    /* Action buttons in table */
+    .action-button-group {
+        display: flex;
+        flex-direction: column; /* Stack buttons */
+        gap: 5px; /* Space between buttons */
+    }
+    .action-button-group button {
+        background-color: var(--primary-blue);
+        color: white;
+        padding: 6px 10px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9em;
+        transition: background-color 0.2s ease;
+    }
+    .action-button-group button:hover {
+        background-color: #006DED;
+    }
+    .action-button-group .delete-button {
+        background-color: var(--error-red);
+    }
+    .action-button-group .delete-button:hover {
+        background-color: #E63946;
+    }
+
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      .header {
+        flex-direction: column;
+        text-align: center;
+        gap: 10px;
+      }
+      .container {
+        margin: 15px;
+        padding: 15px;
+      }
+      /* Make table responsive by stacking cells */
+      .order-history-table, .order-history-table thead, .order-history-table tbody, .order-history-table th, .order-history-table td, .order-history-table tr {
+          display: block;
+      }
+      .order-history-table thead tr {
+          position: absolute;
+          top: -9999px;
+          left: -9999px;
+      }
+      .order-history-table tr {
+          border: 1px solid var(--border-light);
+          margin-bottom: 15px;
+          border-radius: 8px;
+          overflow: hidden;
+      }
+      body.dark-mode .order-history-table tr {
+          border-color: var(--border-light); /* Dark mode consistency */
+      }
+      .order-history-table td {
+          border: none;
+          position: relative;
+          padding-left: 50%;
+          text-align: right;
+          border-bottom: 1px dashed var(--border-light); /* Dashed line for clarity */
+          min-height: 40px; /* Ensure enough height for content */
+      }
+      body.dark-mode .order-history-table td {
+          border-bottom-color: var(--border-light);
+      }
+      .order-history-table td:last-child {
+          border-bottom: none;
+      }
+      .order-history-table td::before {
+          content: attr(data-label);
+          position: absolute;
+          left: 15px;
+          width: calc(50% - 30px);
+          white-space: nowrap;
+          text-align: left;
+          font-weight: 600;
+          color: var(--primary-blue);
+      }
+      body.dark-mode .order-history-table td::before {
+          color: var(--text-dark); /* Dark mode consistency */
+      }
+      .order-item-list, .email-list {
+          padding-left: 0; /* Remove default list padding */
+          text-align: right; /* Align list content to right for responsive view */
+      }
+      .order-item-list li, .email-list li {
+          justify-content: flex-end; /* Align to right */
+      }
+      .order-item-list li span, .email-list li span {
+          text-align: right;
+      }
+      .order-item-list li strong {
+          display: block; /* Stack item ID and name */
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-nav">
+      <button onclick="google.script.run.withSuccessHandler(function(url) { window.open(url, '_top'); }).getIndexFileUrl()">Back to Portal</button>
+    </div>
+    <div style="flex-grow: 1; text-align: center;">
+        </div>
+    <div class="header-nav"> <button id="darkModeToggle" class="header-nav-button">Toggle Dark Mode</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <h2 class="section-title">Order History</h2>
+    <table class="order-history-table">
+        <thead>
+            <tr>
+                <th>Order #</th>
+                <th>Timestamp</th>
+                <th>Items</th>
+                <th>Order Notes</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="orderHistoryTableBody">
+            <tr><td colspan="6" style="text-align: center; color: var(--text-medium);">Loading order history...</td></tr>
+        </tbody>
+    </table>
+    <div id="messages"></div>
+  </div>
+
+  <script>
+    // showMessage function MUST be defined globally (at the top of the script)
+    function showMessage(msg, type) {
+      const messagesDiv = document.getElementById('messages');
+      if (messagesDiv) {
+        messagesDiv.textContent = msg;
+        messagesDiv.className = 'message ' + type + ' show'; // Add 'show' class for visibility and transition
+        setTimeout(() => {
+          messagesDiv.classList.remove('show'); // Remove 'show' after delay to hide it
+          messagesDiv.textContent = ''; // Clear text
+          messagesDiv.className = 'message'; // Reset classes
+        }, 5000);
+      } else {
+        console.warn('Message div not found.');
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log("Order History DOMContentLoaded");
+        
+        // Dark Mode Initialization
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+            document.body.classList.add('dark-mode');
+        }
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        if (darkModeToggle) {
+            darkModeToggle.addEventListener('click', function() {
+                document.body.classList.toggle('dark-mode');
+                if (document.body.classList.contains('dark-mode')) {
+                    localStorage.setItem('theme', 'dark');
+                } else {
+                    localStorage.setItem('light');
+                }
+            });
+        }
+        
+        loadOrderHistory();
+    });
+
+    function loadOrderHistory() {
+      console.log('Attempting to load order history...');
+      const tbody = document.getElementById('orderHistoryTableBody');
+      // Updated colspan from 7 to 6
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-medium);">Loading order history...</td></tr>'; 
+
+      google.script.run
+        .withSuccessHandler(function(orders) {
+          console.log('Orders received:', orders);
+          tbody.innerHTML = ''; // Clear loading message
+
+          if (!orders || orders.length === 0) {
+            console.log('No orders found or received an empty array.');
+            // Updated colspan from 7 to 6
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-medium);">No orders found.</td></tr>';
+            return;
+          }
+
+          orders.forEach(order => {
+            console.log('Processing order:', order);
+            const row = tbody.insertRow();
+
+            // Order #
+            row.insertCell().setAttribute('data-label', 'Order #'); // For responsive table
+            row.cells[0].textContent = order.orderNum;
+
+            // Timestamp
+            row.insertCell().setAttribute('data-label', 'Timestamp');
+            const date = new Date(order.timestamp);
+            row.cells[1].textContent = date.toLocaleString();
+
+            // Items
+            const itemsCell = row.insertCell();
+            itemsCell.setAttribute('data-label', 'Items');
+            const itemList = document.createElement('ul');
+            itemList.classList.add('order-item-list');
+            const orderItems = Array.isArray(order.items) ? order.items : [];
+            
+            // --- Debugging for Item Display ---
+            console.log('DEBUG: Items for order', order.orderNum, ':', JSON.stringify(orderItems));
+            // --- End Debugging ---
+
+            orderItems.forEach(item => {
+              const li = document.createElement('li');
+              // Display Item ID, Item Name (if available), Quantity, and Item Notes (if available)
+              const itemNameDisplay = item.itemName ? ` (${item.itemName})` : '';
+              const itemNotesDisplay = item.itemNotes ? `<div class="item-notes-display">${item.itemNotes}</div>` : '';
+              
+              // Ensure item.itemId, item.qty are always available, itemName/itemNotes are optional
+              li.innerHTML = `<strong>${item.itemId || 'N/A'}</strong>${itemNameDisplay} (Qty: ${item.qty || 'N/A'})${itemNotesDisplay}`;
+              itemList.appendChild(li);
+            });
+            if (orderItems.length === 0) {
+                const li = document.createElement('li');
+                li.textContent = 'No items';
+                itemList.appendChild(li);
+            }
+            itemsCell.appendChild(itemList);
+
+            // Order Notes (NEW COLUMN)
+            row.insertCell().setAttribute('data-label', 'Order Notes');
+            row.cells[3].textContent = order.orderNotes || 'N/A'; // order.orderNotes from code.gs is a string
+
+            // Status (with dropdown)
+            const statusCell = row.insertCell();
+            statusCell.setAttribute('data-label', 'Status');
+            const statusDropdown = document.createElement('select');
+            statusDropdown.classList.add('status-dropdown');
+            const statuses = ['Pending', 'Processing', 'Completed', 'Cancelled'];
+            statuses.forEach(status => {
+                const option = document.createElement('option');
+                option.value = status;
+                option.textContent = status;
+                if (status === order.status) {
+                    option.selected = true;
+                }
+                statusDropdown.appendChild(option);
+            });
+            statusDropdown.dataset.order = order.orderNum;
+            statusDropdown.onchange = function() {
+                updateOrderStatus(this.dataset.order, this.value);
+            };
+            statusCell.appendChild(statusDropdown);
+
+            // Actions Cell
+            const actionsCell = row.insertCell();
+            actionsCell.setAttribute('data-label', 'Actions');
+            const actionButtonGroup = document.createElement('div');
+            actionButtonGroup.classList.add('action-button-group');
+
+            // Example Action: Cancel Order Button
+            const cancelButton = document.createElement('button');
+            cancelButton.textContent = 'Cancel';
+            cancelButton.classList.add('delete-button'); // Use delete-button for red style
+            cancelButton.onclick = function() {
+                deleteOrder(order.orderNum); // Call a function to delete/cancel the entire order
+            };
+            actionButtonGroup.appendChild(cancelButton);
+
+            actionsCell.appendChild(actionButtonGroup);
+          });
+        })
+        .withFailureHandler(function(error) {
+          console.error('Error loading order history:', error);
+          // Updated colspan from 7 to 6
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--error-red);">Failed to load orders: ' + error.message + '. Please try again later.</td></tr>'; 
+          showMessage('Error loading order history: ' + error.message, 'error');
+        })
+        .getOrdersWithItems();
+    }
+
+    function updateOrderStatus(orderNum, newStatus) {
+      showMessage(`Updating order ${orderNum} status to ${newStatus}...`, 'info');
+      google.script.run
+        .withSuccessHandler(function() {
+          showMessage(`Order ${orderNum} status updated to ${newStatus}.`, 'success');
+          // No need to reload entire history, just update the local dropdown selection
+        })
+        .withFailureHandler(function(error) {
+          showMessage('Error updating order status: ' + error.message, 'error');
+          // Optional: Reload order history or revert dropdown if update fails
+          // loadOrderHistory(); 
+        })
+        .updateOrderStatusByOrderNum(orderNum, newStatus);
+    }
+    
+    // Function to delete/cancel the entire order (requires server-side function)
+    function deleteOrder(orderNum) {
+        if (!confirm(`Are you sure you want to cancel order ${orderNum}? This action cannot be undone.`)) {
+            return;
+        }
+        showMessage(`Cancelling order ${orderNum}...`, 'info');
+        google.script.run
+            .withSuccessHandler(function(success) {
+                if (success) {
+                    showMessage(`Order ${orderNum} cancelled successfully!`, 'success');
+                    loadOrderHistory(); // Refresh table to show update
+                } else {
+                    showMessage(`Failed to cancel order ${orderNum}.`, 'error');
+                }
+            })
+            .withFailureHandler(function(error) {
+                showMessage(`Error cancelling order ${orderNum}: ${error.message}`, 'error');
+            })
+            .cancelOrder(orderNum); // Requires a 'cancelOrder' function in code.gs
+    }
+
+  </script>
+</body>
+</html>
