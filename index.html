@@ -201,10 +201,18 @@
     .item-display-text { /* New style for item ID and Name */
         display: flex;
         flex-direction: column;
+        flex-grow: 1; /* Allow text to take available space */
     }
     .item-display-text .item-name {
         font-size: 14px;
         color: var(--text-medium);
+    }
+    .item-display-text .item-notes { /* Style for item notes display */
+        font-size: 12px;
+        font-style: italic;
+        color: var(--text-medium);
+        margin-top: 4px;
+        white-space: pre-wrap; /* Preserve whitespace and line breaks */
     }
 
 
@@ -313,6 +321,11 @@
       <input type="number" id="quantity" value="1" min="1">
     </div>
 
+    <div class="form-group">
+      <label for="itemNotes">Item Notes (optional):</label>
+      <input type="text" id="itemNotes" placeholder="e.g., specific color, urgent need">
+    </div>
+
     <div class="button-group">
       <button type="button" class="secondary" onclick="addItem()">Add Item</button>
     </div>
@@ -339,6 +352,11 @@
       <ul class="email-list-display" id="addedEmailsList">
         <li id="noEmailsMessage">No emails added yet.</li>
       </ul>
+    </div>
+
+    <div class="form-group" style="margin-top: 20px;">
+      <label for="orderNotes">Order Notes (optional):</label>
+      <textarea id="orderNotes" placeholder="e.g., Deliver to reception, urgent delivery requested"></textarea>
     </div>
 
     <div class="button-group">
@@ -430,20 +448,32 @@
         .getAllItemDetails();
 
       loadStockStatus();
-      loadDefaultEmails();
+      loadDefaultEmails(); // This will call getGlobalDefaultEmails() now
 
       renderAddedItems();
       renderAddedEmails();
     });
 
+    function showMessage(msg, type) {
+      const messagesDiv = document.getElementById('messages');
+      messagesDiv.textContent = msg;
+      messagesDiv.className = 'message ' + type;
+      setTimeout(() => {
+        messagesDiv.textContent = '';
+        messagesDiv.className = 'message';
+      }, 5000);
+    }
+
     function addItem() {
       const itemIdInput = document.getElementById('itemId');
       const quantityInput = document.getElementById('quantity');
+      const itemNotesInput = document.getElementById('itemNotes'); // Get item notes
 
       const inputVal = itemIdInput.value.trim();
       const quantity = parseInt(quantityInput.value);
+      const itemNotes = itemNotesInput.value.trim(); // Get item notes value
 
-      console.log('addItem called with inputVal:', inputVal, 'quantity:', quantity);
+      console.log('addItem called with inputVal:', inputVal, 'quantity:', quantity, 'itemNotes:', itemNotes);
 
       if (!inputVal) {
         showMessage('Please enter an Item ID or select from the list.', 'error');
@@ -479,25 +509,36 @@
       const itemId = selectedItem.id;
       const itemName = selectedItem.name;
 
-      console.log('Item selected for adding:', { itemId, itemName, quantity });
+      console.log('Item selected for adding:', { itemId, itemName, quantity, itemNotes }); // Log itemNotes
 
-      const existingItemIndex = items.findIndex(item => item.itemId === itemId);
+      // When adding, if the item already exists, we should add notes to the existing item's notes,
+      // or create a new entry if the notes are different. For simplicity, let's allow multiple entries
+      // for the same item ID if the notes are different, or combine if notes are identical.
+      // For now, let's just add it as a new line if notes are different, or update qty if notes are same.
+
+      const existingItemIndex = items.findIndex(item => 
+        item.itemId === itemId && item.itemNotes === itemNotes // Match by ID AND notes
+      );
+
       if (existingItemIndex > -1) {
         items[existingItemIndex].qty += quantity;
-        showMessage(`Updated quantity for ${itemName} (${itemId}).`, 'info');
+        showMessage(`Updated quantity for ${itemName} (${itemId}) with same notes.`, 'info');
       } else {
-        items.push({ itemId, itemName, qty: quantity });
+        items.push({ itemId, itemName, qty: quantity, itemNotes: itemNotes }); // Store itemNotes
         showMessage(`Added ${itemName} (${itemId}) (Qty: ${quantity}).`, 'success');
       }
 
       renderAddedItems();
       itemIdInput.value = '';
       quantityInput.value = '1';
+      itemNotesInput.value = ''; // Clear item notes input
     }
 
     function removeItem(button) {
       const itemIdToRemove = button.dataset.item;
-      const index = items.findIndex(item => item.itemId === itemIdToRemove);
+      const itemNotesToRemove = button.dataset.notes; // Get notes to remove specific entry
+      const index = items.findIndex(item => item.itemId === itemIdToRemove && item.itemNotes === itemNotesToRemove);
+
       if (index > -1) {
         items.splice(index, 1);
         showMessage(`Removed item.`, 'success');
@@ -513,7 +554,15 @@
       } else {
         items.forEach(item => {
           const li = document.createElement('li');
-          li.innerHTML = `<span class="item-display-text"><strong>${item.itemId}</strong> <span class="item-name">${item.itemName}</span> (Qty: ${item.qty})</span><button data-item="${item.itemId}" onclick="removeItem(this)">Remove</button>`;
+          const itemNotesDisplay = item.itemNotes ? `<span class="item-notes">${item.itemNotes}</span>` : '';
+          li.innerHTML = `
+            <span class="item-display-text">
+              <strong>${item.itemId}</strong>
+              <span class="item-name">${item.itemName}</span>
+              (Qty: ${item.qty})
+              ${itemNotesDisplay}
+            </span>
+            <button data-item="${item.itemId}" data-notes="${item.itemNotes}" onclick="removeItem(this)">Remove</button>`; // Pass itemNotes to data-notes
           list.appendChild(li);
         });
       }
@@ -570,6 +619,7 @@
       return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     }
 
+    // Corrected function call to getGlobalDefaultEmails()
     function loadDefaultEmails() {
         google.script.run
             .withSuccessHandler(function(defaultEmailList) {
@@ -589,7 +639,7 @@
             .withFailureHandler(function(error) {
                 showMessage('Error loading default emails: ' + error.message, 'error');
             })
-            .getDefaultEmails();
+            .getGlobalDefaultEmails(); // Corrected function name
     }
 
     function submitOrder() {
@@ -602,8 +652,11 @@
         return;
       }
 
+      const orderNotes = document.getElementById('orderNotes').value.trim(); // Get order notes
+
       console.log('Submitting order with items:', items);
       console.log('Submitting order with emails:', emails);
+      console.log('Submitting order with order notes:', orderNotes); // Log order notes
 
       const cleanEmails = emails.filter(email => email && typeof email === 'string' && email.trim() !== '');
       
@@ -614,9 +667,16 @@
 
       showMessage('Submitting order...', 'info');
 
+      // Create a single object to pass to the server
+      const orderData = {
+          items: items,
+          emails: cleanEmails,
+          orderNotes: orderNotes // Include order notes
+      };
+
       google.script.run
-        .withSuccessHandler(function(orderNum) {
-          showMessage(`Order ${orderNum} submitted successfully!`, 'success');
+        .withSuccessHandler(function(response) { // Expecting an object with orderNum
+          showMessage(`Order ${response.orderNum} submitted successfully!`, 'success');
           resetForm();
           loadStockStatus();
         })
@@ -624,7 +684,7 @@
           showMessage('Error submitting order: ' + error.message, 'error');
           console.error('Submit Order Failure:', error);
         })
-        .submitOrder(items, cleanEmails);
+        .submitOrder(orderData); // Pass the single orderData object
     }
 
     function resetForm() {
@@ -634,7 +694,9 @@
       renderAddedEmails();
       document.getElementById('itemId').value = '';
       document.getElementById('quantity').value = '1';
+      document.getElementById('itemNotes').value = ''; // Clear item notes input
       document.getElementById('recipientEmail').value = '';
+      document.getElementById('orderNotes').value = ''; // Clear order notes textarea
       showMessage('Form reset.', 'info');
     }
 
@@ -649,6 +711,8 @@
           urgentList.innerHTML = '';
           lowList.innerHTML = '';
 
+          // Note: These thresholds are now placeholders for the UI titles,
+          // as the actual logic uses per-item thresholds from Config sheet.
           urgentThresholdSpan.textContent = status.urgentThreshold !== undefined ? status.urgentThreshold : '0';
           lowThresholdSpan.textContent = status.lowThreshold !== undefined ? status.lowThreshold : '5';
 

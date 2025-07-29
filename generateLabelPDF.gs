@@ -117,7 +117,7 @@ function onOpen() {
     .addItem("Generate Label for Selected Row", "generateLabelFromSelection_Slides")
     .addItem("Generate Missing Labels", "generateMissingLabels")
     .addItem("🔴 Check Urgent Stock (Send Email)", "runUrgentStockCheck")
-    .addItem("📬 Send Daily Stock Summary", "runDailySummaryEmail")
+    .addItem("📬 Send Daily Stock Summary", "sendDailyStockEmail")
     .addSeparator()
     .addItem("🖥️ Open Inventory Portal", "openInventoryPortal")
     .addToUi();

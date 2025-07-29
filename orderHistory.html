@@ -180,9 +180,9 @@
     .order-item-list li, .email-list li {
         margin-bottom: 4px; /* Reduced margin */
         display: flex;
-        justify-content: space-between;
+        flex-direction: column; /* Stack item details and notes */
         align-items: flex-start; /* Align to top if content wraps */
-        gap: 5px; /* Smaller gap */
+        gap: 2px; /* Smaller gap between lines */
         word-break: break-word; /* Allow long words to break */
         color: var(--text-medium); /* Lighter text color */
     }
@@ -215,6 +215,7 @@
         font-size: 0.75em; /* Smaller font for buttons in lists */
         transition: background-color 0.2s ease;
         flex-shrink: 0; /* Prevent button from shrinking */
+        margin-top: 5px; /* Space between notes and button */
     }
     .order-item-list button:hover, .email-list button:hover {
         background-color: #E63946;
@@ -266,76 +267,222 @@
         background-color: #E63946;
     }
 
+    /* Modal styles */
+    .modal {
+      display: none; /* Hidden by default */
+      position: fixed; /* Stay in place */
+      z-index: 1000; /* Sit on top */
+      left: 0;
+      top: 0;
+      width: 100%; /* Full width */
+      height: 100%; /* Full height */
+      overflow: auto; /* Enable scroll if needed */
+      background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-content {
+      background-color: var(--white);
+      margin: auto;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+      width: 90%;
+      max-width: 700px;
+      position: relative;
+      animation-name: animatetop;
+      animation-duration: 0.4s;
+      max-height: 90vh; /* Limit height */
+      overflow-y: auto; /* Enable scrolling for content */
+    }
+    body.dark-mode .modal-content {
+        background-color: var(--background-light);
+    }
+    .close-button {
+      color: var(--text-medium);
+      position: absolute;
+      top: 15px;
+      right: 25px;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: color 0.2s ease;
+    }
+    .close-button:hover,
+    .close-button:focus {
+      color: var(--text-dark);
+      text-decoration: none;
+    }
+    @keyframes animatetop {
+      from {top: -300px; opacity: 0}
+      to {top: 0; opacity: 1}
+    }
 
-    /* Responsive adjustments */
-    @media (max-width: 768px) {
-      .header {
+    /* Form styles within modal (reusing some from index.html) */
+    .modal .form-group {
+        margin-bottom: 16px;
+    }
+    .modal .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+        color: var(--text-dark);
+    }
+    .modal .form-group input[type="text"],
+    .modal .form-group input[type="number"],
+    .modal .form-group textarea {
+        width: calc(100% - 24px); /* Adjust for padding */
+        padding: 12px;
+        border: 1px solid var(--border-light);
+        border-radius: 8px;
+        font-size: 16px;
+        background-color: var(--background-light);
+        color: var(--text-dark);
+    }
+    .modal .form-group input[type="text"]:focus,
+    .modal .form-group input[type="number"]:focus,
+    .modal .form-group textarea:focus {
+        outline: none;
+        border-color: var(--primary-blue);
+        box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.2);
+    }
+    .modal .form-group textarea {
+        min-height: 80px;
+        resize: vertical;
+    }
+    .modal .button-group {
+        display: flex;
+        gap: 12px;
+        margin-top: 24px;
+        justify-content: flex-end;
+    }
+    .modal .button-group button {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background-color 0.2s ease, transform 0.1s ease;
+    }
+    .modal .button-group button.primary {
+        background-color: var(--primary-blue);
+        color: var(--white);
+    }
+    .modal .button-group button.primary:hover {
+        background-color: #006DED;
+        transform: translateY(-1px);
+    }
+    .modal .button-group button.secondary {
+        background-color: var(--background-light);
+        color: var(--text-dark);
+        border: 1px solid var(--border-light);
+    }
+    .modal .button-group button.secondary:hover {
+        background-color: #E0E0E5;
+        transform: translateY(-1px);
+    }
+    .modal .item-list-edit {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        border: 1px solid var(--border-light); /* Added border to list */
+        border-radius: 8px; /* Rounded corners for the list */
+        overflow: hidden; /* Ensures border-radius applies to content */
+    }
+    .modal .item-list-edit li {
+        display: flex;
+        flex-wrap: wrap; /* Allow wrapping on small screens */
+        justify-content: space-between;
+        align-items: flex-start; /* Align items to the top */
+        padding: 12px; /* Increased padding */
+        border-bottom: 1px solid var(--border-light);
+        background-color: var(--white); /* Item background */
+    }
+    .modal .item-list-edit li:nth-child(even) { /* Stripe effect */
+        background-color: var(--table-stripe);
+    }
+    body.dark-mode .modal .item-list-edit li:nth-child(even) {
+        background-color: var(--table-stripe); /* Dark mode stripe */
+    }
+    .modal .item-list-edit li:last-child {
+        border-bottom: none;
+    }
+    .modal .item-list-edit .item-details-display {
+        flex-grow: 1;
+        display: flex;
         flex-direction: column;
+        margin-right: 15px; /* Increased space before controls */
+        min-width: 150px; /* Ensure some minimum width */
+    }
+    .modal .item-list-edit .item-details-display strong {
+        color: var(--text-dark);
+        font-size: 1.1em; /* Slightly larger item ID */
+    }
+    .modal .item-list-edit .item-details-display span {
+        font-size: 0.9em;
+        color: var(--text-medium);
+        margin-top: 2px; /* Space between ID and name */
+    }
+    .modal .item-list-edit .item-controls {
+        display: flex;
+        align-items: center;
+        gap: 10px; /* Increased gap */
+        flex-shrink: 0; /* Prevent shrinking */
+        margin-top: 5px; /* Space if wrapping */
+    }
+    .modal .item-list-edit .item-controls label {
+        margin-bottom: 0; /* Remove label margin */
+        font-weight: normal; /* Less bold */
+        color: var(--text-medium);
+    }
+    .modal .item-list-edit .item-controls input[type="number"] {
+        width: 70px; /* Wider width for quantity input */
+        padding: 8px; /* Increased padding */
         text-align: center;
-        gap: 10px;
-      }
-      .container {
-        margin: 15px;
-        padding: 15px;
-      }
-      /* Make table responsive by stacking cells */
-      .order-history-table, .order-history-table thead, .order-history-table tbody, .order-history-table th, .order-history-table td, .order-history-table tr {
-          display: block;
-      }
-      .order-history-table thead tr {
-          position: absolute;
-          top: -9999px;
-          left: -9999px;
-      }
-      .order-history-table tr {
-          border: 1px solid var(--border-light);
-          margin-bottom: 15px;
-          border-radius: 8px;
-          overflow: hidden;
-      }
-      body.dark-mode .order-history-table tr {
-          border-color: var(--border-light); /* Dark mode consistency */
-      }
-      .order-history-table td {
-          border: none;
-          position: relative;
-          padding-left: 50%;
-          text-align: right;
-          border-bottom: 1px dashed var(--border-light); /* Dashed line for clarity */
-          min-height: 40px; /* Ensure enough height for content */
-      }
-      body.dark-mode .order-history-table td {
-          border-bottom-color: var(--border-light);
-      }
-      .order-history-table td:last-child {
-          border-bottom: none;
-      }
-      .order-history-table td::before {
-          content: attr(data-label);
-          position: absolute;
-          left: 15px;
-          width: calc(50% - 30px);
-          white-space: nowrap;
-          text-align: left;
-          font-weight: 600;
-          color: var(--primary-blue);
-      }
-      body.dark-mode .order-history-table td::before {
-          color: var(--text-dark); /* Dark mode consistency */
-      }
-      .order-item-list, .email-list {
-          padding-left: 0; /* Remove default list padding */
-          text-align: right; /* Align list content to right for responsive view */
-      }
-      .order-item-list li, .email-list li {
-          justify-content: flex-end; /* Align to right */
-      }
-      .order-item-list li span, .email-list li span {
-          text-align: right;
-      }
-      .order-item-list li strong {
-          display: block; /* Stack item ID and name */
-      }
+        font-size: 1em; /* Standard font size */
+        border-radius: 6px; /* Rounded corners */
+        background-color: var(--background-light);
+        color: var(--text-dark);
+    }
+    .modal .item-list-edit .item-controls button {
+        padding: 8px 12px; /* Increased padding */
+        font-size: 0.9em; /* Slightly larger font */
+        border-radius: 6px; /* Rounded corners */
+        background-color: var(--error-red); /* Consistent delete button color */
+        color: white;
+    }
+    .modal .item-list-edit .item-notes-input { /* Style for item notes input in modal */
+        width: calc(100% - 2px); /* Full width within its container, accounting for border */
+        margin-top: 10px; /* More space above notes */
+        font-size: 0.9em;
+        min-height: 50px; /* Taller notes field */
+        padding: 10px; /* Increased padding */
+        border-radius: 8px; /* Rounded corners */
+        border: 1px solid var(--border-light);
+        background-color: var(--background-light);
+        color: var(--text-dark);
+    }
+    /* Responsive adjustments for modal items */
+    @media (max-width: 600px) {
+        .modal .item-list-edit li {
+            flex-direction: column;
+            align-items: flex-start;
+            padding: 10px; /* Slightly less padding on mobile */
+        }
+        .modal .item-list-edit .item-details-display {
+            margin-bottom: 10px;
+            margin-right: 0;
+            width: 100%;
+        }
+        .modal .item-list-edit .item-controls {
+            width: 100%;
+            justify-content: flex-end;
+            margin-top: 10px;
+        }
+        .modal .item-list-edit .item-notes-input {
+            width: calc(100% - 20px); /* Adjust for padding */
+        }
     }
   </style>
 </head>
@@ -370,6 +517,47 @@
     <div id="messages"></div>
   </div>
 
+  <!-- Edit Order Modal -->
+  <div id="editOrderModal" class="modal">
+    <div class="modal-content">
+      <span class="close-button" onclick="closeEditOrderModal()">&times;</span>
+      <h2 class="section-title">Edit Order <span id="modalOrderNum"></span></h2>
+
+      <div class="form-group">
+        <label for="modalOrderNotes">Order Notes:</label>
+        <textarea id="modalOrderNotes" placeholder="Notes for the entire order"></textarea>
+      </div>
+
+      <h3 style="font-size: 18px; margin-top: 20px; margin-bottom: 10px; color: var(--text-dark);">Items in Order:</h3>
+      <ul id="modalItemsList" class="item-list-edit">
+        <!-- Items will be rendered here -->
+      </ul>
+
+      <h3 style="font-size: 18px; margin-top: 20px; margin-bottom: 10px; color: var(--text-dark);">Add New Item to Order:</h3>
+      <div class="form-group">
+        <label for="modalNewItemId">Item ID / Name:</label>
+        <input type="text" id="modalNewItemId" list="modalItemIDs" placeholder="Start typing item ID or name..." autocomplete="off">
+        <datalist id="modalItemIDs"></datalist>
+      </div>
+      <div class="form-group">
+        <label for="modalNewQuantity">Quantity:</label>
+        <input type="number" id="modalNewQuantity" value="1" min="1">
+      </div>
+      <div class="form-group">
+        <label for="modalNewItemNotes">Item Notes (optional):</label>
+        <input type="text" id="modalNewItemNotes" placeholder="e.g., specific color, urgent need">
+      </div>
+      <div class="button-group">
+        <button type="button" class="secondary" onclick="addItemToModal()">Add Item to Order</button>
+      </div>
+
+      <div class="button-group">
+        <button type="button" class="primary" onclick="saveOrderChanges()">Save Changes</button>
+        <button type="button" class="secondary" onclick="closeEditOrderModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     // showMessage function MUST be defined globally (at the top of the script)
     function showMessage(msg, type) {
@@ -385,6 +573,17 @@
       } else {
         console.warn('Message div not found.');
       }
+    }
+
+    let currentEditingOrderNum = null; // Stores the order number being edited
+    let currentEditingItems = []; // Stores items for the order being edited in the modal
+    let availableItemDetails = []; // To store all item ID/Name pairs for datalist
+    let allOrdersData = []; // NEW: Cache for all orders loaded from getOrdersWithItems
+
+    // Helper function to normalize strings for comparison (e.g., remove special characters)
+    function normalizeString(str) {
+      if (typeof str !== 'string') return '';
+      return str.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
     }
 
     document.addEventListener('DOMContentLoaded', function() {
@@ -408,22 +607,44 @@
         }
         
         loadOrderHistory();
+        loadAllItemDetailsForModal(); // Load item details for the modal's datalist
     });
+
+    function loadAllItemDetailsForModal() {
+        google.script.run
+            .withSuccessHandler(function(itemDetails) {
+                availableItemDetails = itemDetails;
+                const datalist = document.getElementById('modalItemIDs');
+                datalist.innerHTML = '';
+                if (availableItemDetails && availableItemDetails.length > 0) {
+                    availableItemDetails.forEach(item => {
+                        const option = document.createElement('option');
+                        option.value = `${item.id} - ${item.name}`;
+                        datalist.appendChild(option);
+                    });
+                }
+            })
+            .withFailureHandler(function(error) {
+                console.error('Error loading all item details for modal:', error);
+                // No need to show message to user, as this is a background load
+            })
+            .getAllItemDetails(); // This function already exists in code.gs
+    }
+
 
     function loadOrderHistory() {
       console.log('Attempting to load order history...');
       const tbody = document.getElementById('orderHistoryTableBody');
-      // Updated colspan from 7 to 6
       tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-medium);">Loading order history...</td></tr>'; 
 
       google.script.run
         .withSuccessHandler(function(orders) {
           console.log('Orders received:', orders);
+          allOrdersData = orders; // NEW: Cache all orders data
           tbody.innerHTML = ''; // Clear loading message
 
           if (!orders || orders.length === 0) {
             console.log('No orders found or received an empty array.');
-            // Updated colspan from 7 to 6
             tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-medium);">No orders found.</td></tr>';
             return;
           }
@@ -432,34 +653,33 @@
             console.log('Processing order:', order);
             const row = tbody.insertRow();
 
-            // Order #
-            row.insertCell().setAttribute('data-label', 'Order #'); // For responsive table
+            // Order # (Column 1)
+            row.insertCell().setAttribute('data-label', 'Order #');
             row.cells[0].textContent = order.orderNum;
 
-            // Timestamp
+            // Timestamp (Column 2)
             row.insertCell().setAttribute('data-label', 'Timestamp');
             const date = new Date(order.timestamp);
             row.cells[1].textContent = date.toLocaleString();
 
-            // Items
+            // Items (Column 3)
             const itemsCell = row.insertCell();
             itemsCell.setAttribute('data-label', 'Items');
             const itemList = document.createElement('ul');
             itemList.classList.add('order-item-list');
             const orderItems = Array.isArray(order.items) ? order.items : [];
             
-            // --- Debugging for Item Display ---
             console.log('DEBUG: Items for order', order.orderNum, ':', JSON.stringify(orderItems));
-            // --- End Debugging ---
 
             orderItems.forEach(item => {
               const li = document.createElement('li');
-              // Display Item ID, Item Name (if available), Quantity, and Item Notes (if available)
               const itemNameDisplay = item.itemName ? ` (${item.itemName})` : '';
               const itemNotesDisplay = item.itemNotes ? `<div class="item-notes-display">${item.itemNotes}</div>` : '';
               
-              // Ensure item.itemId, item.qty are always available, itemName/itemNotes are optional
-              li.innerHTML = `<strong>${item.itemId || 'N/A'}</strong>${itemNameDisplay} (Qty: ${item.qty || 'N/A'})${itemNotesDisplay}`;
+              li.innerHTML = `
+                <strong>${item.itemId || 'N/A'}</strong>
+                <span class="item-name-qty">${itemNameDisplay} (Qty: ${item.qty || 'N/A'})</span>
+                ${itemNotesDisplay}`;
               itemList.appendChild(li);
             });
             if (orderItems.length === 0) {
@@ -469,11 +689,11 @@
             }
             itemsCell.appendChild(itemList);
 
-            // Order Notes (NEW COLUMN)
+            // Order Notes (Column 4)
             row.insertCell().setAttribute('data-label', 'Order Notes');
-            row.cells[3].textContent = order.orderNotes || 'N/A'; // order.orderNotes from code.gs is a string
+            row.cells[3].textContent = order.orderNotes || 'N/A';
 
-            // Status (with dropdown)
+            // Status (Column 5)
             const statusCell = row.insertCell();
             statusCell.setAttribute('data-label', 'Status');
             const statusDropdown = document.createElement('select');
@@ -494,27 +714,49 @@
             };
             statusCell.appendChild(statusDropdown);
 
-            // Actions Cell
+            // Actions Cell (Column 6)
             const actionsCell = row.insertCell();
             actionsCell.setAttribute('data-label', 'Actions');
             const actionButtonGroup = document.createElement('div');
             actionButtonGroup.classList.add('action-button-group');
 
-            // Example Action: Cancel Order Button
-            const cancelButton = document.createElement('button');
-            cancelButton.textContent = 'Cancel';
-            cancelButton.classList.add('delete-button'); // Use delete-button for red style
-            cancelButton.onclick = function() {
-                deleteOrder(order.orderNum); // Call a function to delete/cancel the entire order
-            };
-            actionButtonGroup.appendChild(cancelButton);
+            // Edit button (only for Pending orders)
+            if (order.status === 'Pending') {
+                const editButton = document.createElement('button');
+                editButton.textContent = 'Edit';
+                editButton.classList.add('primary'); // Or a suitable class for edit
+                editButton.onclick = function() {
+                    openEditOrderModal(order.orderNum);
+                };
+                actionButtonGroup.appendChild(editButton);
+            }
+
+            // Conditional Cancel/Delete Buttons
+            if (order.status !== 'Cancelled') {
+                // Cancel Button (appears if not already cancelled)
+                const cancelButton = document.createElement('button');
+                cancelButton.textContent = 'Cancel';
+                cancelButton.classList.add('delete-button'); // Use delete-button for red style
+                cancelButton.onclick = function() {
+                    cancelOrderWithConfirmation(order.orderNum); // Calls function to set status to 'Cancelled'
+                };
+                actionButtonGroup.appendChild(cancelButton);
+            } else {
+                // Delete Button (appears ONLY if status is 'Cancelled')
+                const deleteButton = document.createElement('button');
+                deleteButton.textContent = 'Delete Permanently';
+                deleteButton.classList.add('delete-button'); // Use delete-button for red style
+                deleteButton.onclick = function() {
+                    deleteOrderPermanentlyWithConfirmation(order.orderNum); // Calls function to delete from sheets
+                };
+                actionButtonGroup.appendChild(deleteButton);
+            }
 
             actionsCell.appendChild(actionButtonGroup);
           });
         })
         .withFailureHandler(function(error) {
           console.error('Error loading order history:', error);
-          // Updated colspan from 7 to 6
           tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--error-red);">Failed to load orders: ' + error.message + '. Please try again later.</td></tr>'; 
           showMessage('Error loading order history: ' + error.message, 'error');
         })
@@ -536,25 +778,247 @@
         .updateOrderStatusByOrderNum(orderNum, newStatus);
     }
     
-    // Function to delete/cancel the entire order (requires server-side function)
-    function deleteOrder(orderNum) {
-        if (!confirm(`Are you sure you want to cancel order ${orderNum}? This action cannot be undone.`)) {
+    // Function to initiate cancellation (sets status to 'Cancelled')
+    function cancelOrderWithConfirmation(orderNum) {
+        const confirmation = prompt(`To confirm cancellation of order ${orderNum}, please type the order number exactly as shown:`);
+        if (confirmation === orderNum) {
+            showMessage(`Cancelling order ${orderNum}...`, 'info');
+            google.script.run
+                .withSuccessHandler(function(success) {
+                    if (success) {
+                        showMessage(`Order ${orderNum} cancelled successfully!`, 'success');
+                        loadOrderHistory(); // Refresh table to show update (will now show 'Delete' button)
+                    } else {
+                        showMessage(`Failed to cancel order ${orderNum}.`, 'error');
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    showMessage(`Error cancelling order ${orderNum}: ${error.message}`, 'error');
+                })
+                .cancelOrder(orderNum); // Calls the backend function to change status
+        } else if (confirmation !== null) {
+            showMessage('Order number mismatch. Cancellation aborted.', 'error');
+        } else {
+            showMessage('Order cancellation aborted.', 'info');
+        }
+    }
+
+    // NEW: Function to permanently delete a CANCELLED order
+    function deleteOrderPermanentlyWithConfirmation(orderNum) {
+        const confirmation = prompt(`WARNING: This will permanently delete order ${orderNum} from the system. This action cannot be undone. To confirm, please type the order number exactly as shown:`);
+        if (confirmation === orderNum) {
+            showMessage(`Deleting order ${orderNum} permanently...`, 'info');
+            google.script.run
+                .withSuccessHandler(function(success) {
+                    if (success) {
+                        showMessage(`Order ${orderNum} permanently deleted!`, 'success');
+                        loadOrderHistory(); // Refresh table to remove the deleted order
+                    } else {
+                        showMessage(`Failed to permanently delete order ${orderNum}.`, 'error');
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    showMessage(`Error deleting order ${orderNum} permanently: ${error.message}`, 'error');
+                })
+                .deleteOrderPermanently(orderNum); // NEW: Calls the backend function to delete rows
+        } else if (confirmation !== null) {
+            showMessage('Order number mismatch. Permanent deletion aborted.', 'error');
+        } else {
+            showMessage('Permanent deletion aborted.', 'info');
+        }
+    }
+
+    // --- Edit Order Modal Functions ---
+    function openEditOrderModal(orderNum) {
+        currentEditingOrderNum = orderNum;
+        document.getElementById('modalOrderNum').textContent = orderNum;
+        document.getElementById('editOrderModal').style.display = 'flex'; // Show modal
+
+        const cachedOrder = allOrdersData.find(order => order.orderNum === orderNum);
+
+        if (cachedOrder) {
+            console.log('Loading order details from cache for editing:', orderNum);
+            document.getElementById('modalOrderNotes').value = cachedOrder.orderNotes || '';
+            currentEditingItems = JSON.parse(JSON.stringify(cachedOrder.items || [])); // Deep copy
+            renderModalItems();
+            showMessage('Order details loaded from cache.', 'success');
+        } else {
+            console.log('Loading order details from server (cache miss) for editing:', orderNum);
+            showMessage('Loading order details for editing...', 'info');
+            google.script.run
+                .withSuccessHandler(function(order) {
+                    if (order) {
+                        document.getElementById('modalOrderNotes').value = order.orderNotes || '';
+                        currentEditingItems = order.items || [];
+                        renderModalItems();
+                        showMessage('Order details loaded from server.', 'success');
+                    } else {
+                        showMessage('Order not found for editing.', 'error');
+                        closeEditOrderModal();
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    showMessage('Error loading order for editing: ' + error.message, 'error');
+                    console.error('Error loading order for editing:', error);
+                    closeEditOrderModal();
+                })
+                .getSingleOrderDetails(orderNum);
+        }
+    }
+
+    function closeEditOrderModal() {
+        document.getElementById('editOrderModal').style.display = 'none'; // Hide modal
+        currentEditingOrderNum = null;
+        currentEditingItems = [];
+        // Clear modal form fields
+        document.getElementById('modalOrderNotes').value = '';
+        document.getElementById('modalNewItemId').value = '';
+        document.getElementById('modalNewQuantity').value = '1';
+        document.getElementById('modalNewItemNotes').value = '';
+        document.getElementById('modalItemsList').innerHTML = ''; // Clear items list
+    }
+
+    function renderModalItems() {
+        const list = document.getElementById('modalItemsList');
+        list.innerHTML = '';
+        if (currentEditingItems.length === 0) {
+            list.innerHTML = '<li>No items in this order.</li>';
+        } else {
+            currentEditingItems.forEach((item, index) => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <div class="item-details-display">
+                        <strong>${item.itemId}</strong>
+                        <span>${item.itemName}</span>
+                        <textarea class="item-notes-input" placeholder="Item notes (optional)"
+                                  data-index="${index}">${item.itemNotes || ''}</textarea>
+                    </div>
+                    <div class="item-controls">
+                        <label>Qty:</label>
+                        <input type="number" value="${item.qty}" min="1" data-index="${index}" onchange="updateModalItemQuantity(this)">
+                        <button class="delete-button" data-index="${index}" onclick="removeModalItem(this)">Remove</button>
+                    </div>
+                `;
+                list.appendChild(li);
+            });
+        }
+    }
+
+    function updateModalItemQuantity(inputElement) {
+        const index = parseInt(inputElement.dataset.index);
+        const newQty = parseInt(inputElement.value);
+        if (!isNaN(newQty) && newQty > 0) {
+            currentEditingItems[index].qty = newQty;
+        } else {
+            inputElement.value = currentEditingItems[index].qty; // Revert if invalid
+            showMessage('Quantity must be a positive number.', 'error');
+        }
+    }
+
+    // Event listener for notes input (using 'input' for real-time updates)
+    document.getElementById('modalItemsList').addEventListener('input', function(event) {
+        if (event.target.classList.contains('item-notes-input')) {
+            const index = parseInt(event.target.dataset.index);
+            currentEditingItems[index].itemNotes = event.target.value.trim();
+        }
+    });
+
+    function removeModalItem(button) {
+        const index = parseInt(button.dataset.index);
+        if (confirm('Are you sure you want to remove this item from the order?')) {
+            currentEditingItems.splice(index, 1);
+            renderModalItems(); // Re-render the list
+            showMessage('Item removed from order (not yet saved).', 'info');
+        }
+    }
+
+    function addItemToModal() {
+        const itemIdInput = document.getElementById('modalNewItemId');
+        const quantityInput = document.getElementById('modalNewQuantity');
+        const itemNotesInput = document.getElementById('modalNewItemNotes');
+
+        const inputVal = itemIdInput.value.trim();
+        const quantity = parseInt(quantityInput.value);
+        const itemNotes = itemNotesInput.value.trim();
+
+        if (!inputVal) {
+            showMessage('Please enter an Item ID or select from the list.', 'error');
             return;
         }
-        showMessage(`Cancelling order ${orderNum}...`, 'info');
+        if (isNaN(quantity) || quantity <= 0) {
+            showMessage('Quantity must be a positive number.', 'error');
+            return;
+        }
+
+        let selectedItem = null;
+        const normalizedInputVal = normalizeString(inputVal);
+
+        selectedItem = availableItemDetails.find(item => {
+            const normalizedItemCombined = normalizeString(`${item.id} - ${item.name}`);
+            return normalizedItemCombined === normalizedInputVal;
+        });
+
+        if (!selectedItem) {
+            selectedItem = availableItemDetails.find(item => normalizeString(item.id) === normalizedInputVal);
+        }
+        
+        if (!selectedItem) {
+            showMessage('Invalid Item ID or Name. Please select from the list or enter a valid ID.', 'error');
+            return;
+        }
+
+        const itemId = selectedItem.id;
+        const itemName = selectedItem.name;
+
+        // Check if item with same ID and notes already exists in currentEditingItems
+        const existingItemIndex = currentEditingItems.findIndex(item => 
+            item.itemId === itemId && item.itemNotes === itemNotes
+        );
+
+        if (existingItemIndex > -1) {
+            currentEditingItems[existingItemIndex].qty += quantity;
+            showMessage(`Updated quantity for existing item in modal.`, 'info');
+        } else {
+            currentEditingItems.push({ itemId, itemName, qty: quantity, itemNotes: itemNotes });
+            showMessage(`Added new item to modal (not yet saved).`, 'success');
+        }
+
+        renderModalItems();
+        itemIdInput.value = '';
+        quantityInput.value = '1';
+        itemNotesInput.value = '';
+    }
+
+    function saveOrderChanges() {
+        if (!currentEditingOrderNum) {
+            showMessage('No order selected for editing.', 'error');
+            return;
+        }
+
+        const newOrderNotes = document.getElementById('modalOrderNotes').value.trim();
+
+        if (currentEditingItems.length === 0) {
+            if (!confirm('This order has no items. Do you want to save it as an empty order or cancel?')) {
+                return;
+            }
+        }
+
+        showMessage('Saving changes...', 'info');
         google.script.run
-            .withSuccessHandler(function(success) {
-                if (success) {
-                    showMessage(`Order ${orderNum} cancelled successfully!`, 'success');
-                    loadOrderHistory(); // Refresh table to show update
+            .withSuccessHandler(function(response) {
+                if (response.success) {
+                    showMessage(`Order ${currentEditingOrderNum} updated successfully!`, 'success');
+                    closeEditOrderModal();
+                    loadOrderHistory(); // Reload table to reflect changes
                 } else {
-                    showMessage(`Failed to cancel order ${orderNum}.`, 'error');
+                    showMessage(`Failed to save changes: ${response.message || 'Unknown error'}`, 'error');
                 }
             })
             .withFailureHandler(function(error) {
-                showMessage(`Error cancelling order ${orderNum}: ${error.message}`, 'error');
+                showMessage('Error saving changes: ' + error.message, 'error');
+                console.error('Save changes failure:', error);
             })
-            .cancelOrder(orderNum); // Requires a 'cancelOrder' function in code.gs
+            .updateOrder(currentEditingOrderNum, newOrderNotes, currentEditingItems);
     }
 
   </script>

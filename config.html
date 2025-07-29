@@ -85,6 +85,7 @@
       background-color: var(--white);
       border-radius: 12px;
       box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+      overflow-x: auto; /* For table responsiveness */
     }
 
     .section-title {
@@ -107,7 +108,9 @@
     }
     .form-group input[type="text"],
     .form-group input[type="number"],
-    .form-group input[type="email"] {
+    .form-group input[type="email"],
+    .form-group select, /* Added select */
+    .form-group textarea { /* Added textarea */
       width: calc(100% - 24px); /* Adjust for padding */
       padding: 12px;
       border: 1px solid var(--border-light);
@@ -118,10 +121,16 @@
     }
     .form-group input[type="text"]:focus,
     .form-group input[type="number"]:focus,
-    .form-group input[type="email"]:focus {
+    .form-group input[type="email"]:focus,
+    .form-group select:focus, /* Added select */
+    .form-group textarea:focus { /* Added textarea */
       outline: none;
       border-color: var(--primary-blue);
       box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.2);
+    }
+    .form-group textarea {
+        min-height: 80px; /* Give textarea a default height */
+        resize: vertical; /* Allow vertical resizing */
     }
 
     .button-group {
@@ -141,7 +150,7 @@
     }
     .button-group button.primary {
       background-color: var(--primary-blue);
-      color: var(--white);
+      color: var(--white); /* This 'white' is actually the light mode white. It will remain white for contrast */
     }
     .button-group button.primary:hover {
       background-color: #006DED; /* Darker blue on hover */
@@ -163,6 +172,11 @@
       border-radius: 8px;
       text-align: center;
       font-weight: 500;
+      opacity: 0; /* Hidden by default for smooth transition */
+      transition: opacity 0.3s ease-in-out;
+    }
+    #messages.show { /* For visibility */
+        opacity: 1;
     }
     .message.success {
       background-color: rgba(52, 199, 89, 0.1);
@@ -189,23 +203,31 @@
         background-color: rgba(10, 132, 255, 0.2);
     }
 
-    /* Table styles for config (if applicable) */
+    /* Table styles for config */
     .config-table {
         width: 100%;
         border-collapse: collapse;
         margin-top: 20px;
+        background-color: var(--white);
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 1px 5px rgba(0,0,0,0.05);
     }
     .config-table th, .config-table td {
         border: 1px solid var(--border-light);
         padding: 12px;
         text-align: left;
-        vertical-align: top;
+        vertical-align: middle; /* Align content vertically */
         font-size: 15px;
+        color: var(--text-dark);
     }
     .config-table th {
         background-color: var(--background-light);
         font-weight: 600;
         color: var(--text-dark);
+    }
+    body.dark-mode .config-table th {
+        background-color: var(--white);
     }
     .config-table tr:nth-child(even) {
         background-color: var(--table-stripe);
@@ -213,6 +235,66 @@
     .config-table tr:hover {
         background-color: var(--table-hover);
     }
+    .config-table input[type="number"],
+    .config-table input[type="text"],
+    .config-table select {
+        width: calc(100% - 10px); /* Adjust for padding */
+        padding: 6px;
+        border: 1px solid var(--border-light);
+        border-radius: 6px;
+        font-size: 14px;
+        background-color: var(--background-light);
+        color: var(--text-dark);
+    }
+    .config-table input[type="number"]:focus,
+    .config-table input[type="text"]:focus,
+    .config-table select:focus {
+        outline: none;
+        border-color: var(--primary-blue);
+        box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.2);
+    }
+    .config-table .action-buttons {
+        display: flex;
+        gap: 5px;
+        justify-content: center; /* Center buttons in cell */
+    }
+    .config-table .action-buttons button {
+        padding: 6px 10px;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.85em;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+    .config-table .action-buttons .edit-button {
+        background-color: var(--primary-blue);
+        color: white;
+    }
+    .config-table .action-buttons .edit-button:hover {
+        background-color: #006DED;
+    }
+    .config-table .action-buttons .delete-button {
+        background-color: var(--error-red);
+        color: white;
+    }
+    .config-table .action-buttons .delete-button:hover {
+        background-color: #E63946;
+    }
+    .config-table .action-buttons .save-button {
+        background-color: var(--success-green);
+        color: white;
+    }
+    .config-table .action-buttons .save-button:hover {
+        background-color: #28A745;
+    }
+    .config-table .action-buttons .cancel-button {
+        background-color: var(--text-medium);
+        color: white;
+    }
+    .config-table .action-buttons .cancel-button:hover {
+        background-color: #5A5A5D;
+    }
+
     /* Responsive adjustments */
     @media (max-width: 768px) {
       .header {
@@ -230,6 +312,45 @@
       .button-group button {
         width: 100%;
       }
+      /* Responsive table for config */
+      .config-table, .config-table thead, .config-table tbody, .config-table th, .config-table td, .config-table tr {
+          display: block;
+      }
+      .config-table thead tr {
+          position: absolute;
+          top: -9999px;
+          left: -9999px;
+      }
+      .config-table tr {
+          border: 1px solid var(--border-light);
+          margin-bottom: 15px;
+          border-radius: 8px;
+          overflow: hidden;
+      }
+      .config-table td {
+          border: none;
+          position: relative;
+          padding-left: 50%;
+          text-align: right;
+          border-bottom: 1px dashed var(--border-light);
+          min-height: 40px;
+      }
+      .config-table td:last-child {
+          border-bottom: none;
+      }
+      .config-table td::before {
+          content: attr(data-label);
+          position: absolute;
+          left: 15px;
+          width: calc(50% - 30px);
+          white-space: nowrap;
+          text-align: left;
+          font-weight: 600;
+          color: var(--primary-blue);
+      }
+      .config-table .action-buttons {
+          justify-content: flex-end; /* Align buttons to the right in responsive view */
+      }
     }
   </style>
 </head>
@@ -239,7 +360,7 @@
       <button onclick="google.script.run.withSuccessHandler(function(url) { window.open(url, '_top'); }).getIndexFileUrl()">Back to Portal</button>
     </div>
     <div style="flex-grow: 1; text-align: center;">
-        <h1 style="margin:0; font-size: 28px; color: var(--text-dark);">Configuration Settings</h1>
+        <h1 style="margin:0; font-size: 28px; color: var(--text-dark);">Item Configuration Settings</h1>
     </div>
     <div class="header-nav">
         <button id="darkModeToggle" class="header-nav-button">Toggle Dark Mode</button>
@@ -247,56 +368,126 @@
 </div>
 
   <div class="container">
-    <h2 class="section-title">General Settings</h2>
+    <h2 class="section-title">Add New Item Configuration</h2>
 
     <div class="form-group">
-      <label for="urgentThreshold">Urgent Stock Threshold:</label>
-      <input type="number" id="urgentThreshold" value="0">
+      <label for="newItemId">Item ID:</label>
+      <input type="text" id="newItemId" placeholder="Enter Item ID" autocomplete="off" list="availableItemIDs">
+      <datalist id="availableItemIDs"></datalist>
     </div>
 
     <div class="form-group">
-      <label for="lowThreshold">Low Stock Threshold:</label>
-      <input type="number" id="lowThreshold" value="5">
+      <label for="newUrgentThreshold">Urgent Threshold:</label>
+      <input type="number" id="newUrgentThreshold" value="0" min="0">
     </div>
 
     <div class="form-group">
-      <label for="defaultEmails">Default Notification Emails (comma-separated):</label>
-      <input type="text" id="defaultEmails" placeholder="email1@example.com, email2@example.com">
+        <label for="newUrgentComparison">Urgent Comparison:</label>
+        <select id="newUrgentComparison">
+            <option value="less_than">Less Than (&lt;)</option>
+            <option value="less_than_or_equal" selected>Less Than or Equal To (&le;)</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+      <label for="newDailyThreshold">Daily Threshold:</label>
+      <input type="number" id="newDailyThreshold" value="5" min="0">
+    </div>
+
+    <div class="form-group">
+        <label for="newDailyComparison">Daily Comparison:</label>
+        <select id="newDailyComparison">
+            <option value="less_than">Less Than (&lt;)</option>
+            <option value="less_than_or_equal" selected>Less Than or Equal To (&le;)</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="newNotifyType">Notify Type:</label>
+        <select id="newNotifyType">
+            <option value="both">Both (Urgent & Daily)</option>
+            <option value="urgent">Urgent Only</option>
+            <option value="daily">Daily Only</option>
+            <option value="none">None</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+      <label for="newNotes">Notes (optional):</label>
+      <input type="text" id="newNotes" placeholder="Any specific notes for this item">
+    </div>
+
+    <div class="form-group">
+      <label for="newEmails">Notification Emails (comma-separated):</label>
+      <input type="text" id="newEmails" placeholder="email1@example.com, email2@example.com">
     </div>
 
     <div class="button-group">
-        <button type="button" class="primary" onclick="saveConfig()">Save Settings</button>
-        <button type="button" class="secondary" onclick="loadConfig()">Load Settings</button>
+        <button type="button" class="primary" onclick="addItemConfig()">Add Item Config</button>
     </div>
 
     <div id="messages"></div>
 
-    <h2 class="section-title" style="margin-top: 40px;">Advanced Settings</h2>
+    <h2 class="section-title" style="margin-top: 40px;">Current Item Configurations</h2>
     <table class="config-table">
         <thead>
             <tr>
-                <th>Setting Name</th>
-                <th>Value</th>
-                <th>Description</th>
+                <th>Item ID</th>
+                <th>Urgent Threshold</th>
+                <th>Urgent Comparison</th>
+                <th>Daily Threshold</th>
+                <th>Daily Comparison</th>
+                <th>Notify Type</th>
+                <th>Emails</th>
+                <th>On Order Flag</th>
+                <th>Last Urgent Sent</th>
+                <th>Notes</th>
+                <th>Actions</th>
             </tr>
         </thead>
-        <tbody>
-            <tr>
-                <td>Setting A</td>
-                <td>Value 1</td>
-                <td>Description for setting A</td>
-            </tr>
-            <tr>
-                <td>Setting B</td>
-                <td>Value 2</td>
-                <td>Description for setting B</td>
-            </tr>
+        <tbody id="configTableBody">
+            <tr><td colspan="11" style="text-align: center; color: var(--text-medium);">Loading configurations...</td></tr>
         </tbody>
     </table>
+    <div class="button-group">
+        <button type="button" class="primary" onclick="saveAllItemConfigs()">Save All Changes</button>
+        <button type="button" class="secondary" onclick="loadItemConfigs()">Discard Changes & Reload</button>
+    </div>
+
+    <h2 class="section-title" style="margin-top: 40px;">Global Settings</h2>
+    <div class="form-group">
+        <label for="globalDefaultEmails">Global Default Notification Emails (comma-separated):</label>
+        <input type="text" id="globalDefaultEmails" placeholder="email1@example.com, email2@example.com">
+    </div>
+    <div class="button-group">
+        <button type="button" class="primary" onclick="saveGlobalDefaultEmails()">Save Global Emails</button>
+        <button type="button" class="secondary" onclick="loadGlobalDefaultEmails()">Load Global Emails</button>
+    </div>
+
 
   </div>
 
   <script>
+    let itemConfigs = []; // Stores the current state of item configurations in the UI
+    let availableProductItemDetails = []; // To store all item ID/Name pairs for the datalist
+
+    function showMessage(msg, type) {
+      const messagesDiv = document.getElementById('messages');
+      messagesDiv.textContent = msg;
+      messagesDiv.className = 'message ' + type + ' show';
+      setTimeout(() => {
+        messagesDiv.classList.remove('show');
+        messagesDiv.textContent = '';
+        messagesDiv.className = 'message';
+      }, 5000);
+    }
+
+    // Helper to normalize strings for comparison (e.g., for datalist matching)
+    function normalizeString(str) {
+      if (typeof str !== 'string') return '';
+      return str.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
       // Dark Mode Initialization
       const savedTheme = localStorage.getItem('theme');
@@ -315,65 +506,280 @@
         });
       }
 
-      // Load settings on page load
-      loadConfig();
+      loadItemConfigs(); // Load existing item configurations
+      loadAvailableProductItems(); // Load item IDs for the datalist
+      loadGlobalDefaultEmails(); // Load global default emails
     });
 
-    function showMessage(msg, type) {
-      const messagesDiv = document.getElementById('messages');
-      messagesDiv.textContent = msg;
-      messagesDiv.className = 'message ' + type;
-      setTimeout(() => {
-        messagesDiv.textContent = '';
-        messagesDiv.className = 'message';
-      }, 5000);
-    }
-
-    // --- Implemented Functions for Config Page ---
-    function loadConfig() {
-        console.log("Loading config settings...");
-        showMessage('Loading settings...', 'info');
+    function loadAvailableProductItems() {
         google.script.run
-            .withSuccessHandler(function(configData) {
-                document.getElementById('urgentThreshold').value = configData.urgentThreshold;
-                document.getElementById('lowThreshold').value = configData.lowThreshold;
-                document.getElementById('defaultEmails').value = configData.defaultEmails.join(', ');
-                showMessage('Settings loaded successfully.', 'success');
+            .withSuccessHandler(function(itemDetails) {
+                availableProductItemDetails = itemDetails;
+                const datalist = document.getElementById('availableItemIDs');
+                datalist.innerHTML = '';
+                if (availableProductItemDetails && availableProductItemDetails.length > 0) {
+                    availableProductItemDetails.forEach(item => {
+                        const option = document.createElement('option');
+                        option.value = `${item.id} - ${item.name}`;
+                        datalist.appendChild(option);
+                    });
+                }
             })
             .withFailureHandler(function(error) {
-                showMessage('Error loading config: ' + error.message, 'error');
-                console.error('Error loading config:', error);
+                console.error('Error loading product item details for datalist:', error);
+                showMessage('Failed to load product list for new item config.', 'error');
             })
-            .getAppSettings(); // Call the Apps Script function
+            .getAllItemDetails(); // This function should return {id, name}
     }
 
-    function saveConfig() {
-        console.log("Saving config settings...");
-        showMessage('Saving settings...', 'info');
+    function loadItemConfigs() {
+        console.log("Loading item configurations...");
+        const tbody = document.getElementById('configTableBody');
+        tbody.innerHTML = '<tr><td colspan="11" style="text-align: center; color: var(--text-medium);">Loading configurations...</td></tr>';
+        
+        google.script.run
+            .withSuccessHandler(function(configs) {
+                itemConfigs = configs || []; // Defensive: ensure it's an array
+                renderConfigTable();
+                showMessage('Configurations loaded successfully.', 'success');
+            })
+            .withFailureHandler(function(error) {
+                // Ensure itemConfigs is an empty array on failure too
+                itemConfigs = []; 
+                showMessage('Error loading configurations: ' + error.message, 'error');
+                console.error('Error loading configurations:', error);
+                tbody.innerHTML = '<tr><td colspan="11" style="text-align: center; color: var(--error-red);">Failed to load configurations.</td></tr>';
+                renderConfigTable(); // Attempt to render empty table or error message
+            })
+            .getIndividualItemConfigs(); // New Apps Script function
+    }
 
-        const urgentThreshold = document.getElementById('urgentThreshold').value;
-        const lowThreshold = document.getElementById('lowThreshold').value;
-        const defaultEmails = document.getElementById('defaultEmails').value.split(',').map(e => e.trim()).filter(Boolean);
+    function renderConfigTable() {
+        const tbody = document.getElementById('configTableBody');
+        tbody.innerHTML = ''; // Clear existing rows
 
-        // Basic validation (optional, but recommended)
-        if (isNaN(parseInt(urgentThreshold)) || isNaN(parseInt(lowThreshold))) {
-            showMessage('Urgent and Low Thresholds must be numbers.', 'error');
+        if (!itemConfigs || itemConfigs.length === 0) { // Defensive check
+            tbody.innerHTML = '<tr><td colspan="11" style="text-align: center; color: var(--text-medium);">No item configurations found. Add some above!</td></tr>';
             return;
         }
 
+        itemConfigs.forEach((config, index) => {
+            const row = tbody.insertRow();
+            row.dataset.index = index; // Store index for editing/deleting
+
+            row.insertCell().setAttribute('data-label', 'Item ID');
+            row.cells[0].textContent = config.itemId;
+
+            row.insertCell().setAttribute('data-label', 'Urgent Threshold');
+            row.cells[1].innerHTML = `<input type="number" value="${config.urgentThreshold}" min="0" data-field="urgentThreshold" onchange="updateConfigItem(this, ${index})">`;
+
+            // NEW: Urgent Comparison Dropdown
+            row.insertCell().setAttribute('data-label', 'Urgent Comparison');
+            row.cells[2].innerHTML = `
+                <select data-field="urgentComparison" onchange="updateConfigItem(this, ${index})">
+                    <option value="less_than" ${config.urgentComparison === 'less_than' ? 'selected' : ''}>Less Than (&lt;)</option>
+                    <option value="less_than_or_equal" ${config.urgentComparison === 'less_than_or_equal' ? 'selected' : ''}>Less Than or Equal To (&le;)</option>
+                </select>`;
+
+            row.insertCell().setAttribute('data-label', 'Daily Threshold');
+            row.cells[3].innerHTML = `<input type="number" value="${config.dailyThreshold}" min="0" data-field="dailyThreshold" onchange="updateConfigItem(this, ${index})">`;
+
+            // NEW: Daily Comparison Dropdown
+            row.insertCell().setAttribute('data-label', 'Daily Comparison');
+            row.cells[4].innerHTML = `
+                <select data-field="dailyComparison" onchange="updateConfigItem(this, ${index})">
+                    <option value="less_than" ${config.dailyComparison === 'less_than' ? 'selected' : ''}>Less Than (&lt;)</option>
+                    <option value="less_than_or_equal" ${config.dailyComparison === 'less_than_or_equal' ? 'selected' : ''}>Less Than or Equal To (&le;)</option>
+                </select>`;
+
+
+            row.insertCell().setAttribute('data-label', 'Notify Type');
+            row.cells[5].innerHTML = `
+                <select data-field="notifyType" onchange="updateConfigItem(this, ${index})">
+                    <option value="both" ${config.notifyType === 'both' ? 'selected' : ''}>Both</option>
+                    <option value="urgent" ${config.notifyType === 'urgent' ? 'selected' : ''}>Urgent Only</option>
+                    <option value="daily" ${config.notifyType === 'daily' ? 'selected' : ''}>Daily Only</option>
+                    <option value="none" ${config.notifyType === 'none' ? 'selected' : ''}>None</option>
+                </select>`;
+            
+            row.insertCell().setAttribute('data-label', 'Emails');
+            row.cells[6].innerHTML = `<input type="text" value="${config.emails || ''}" data-field="emails" onchange="updateConfigItem(this, ${index})">`;
+
+            // New columns in table display for On Order Flag, Last Urgent Sent, and Notes
+            row.insertCell().setAttribute('data-label', 'On Order Flag');
+            // This is primarily for display; the flag is managed by backend operations, not directly edited here.
+            row.cells[7].textContent = config.onOrderFlag || ''; 
+
+            row.insertCell().setAttribute('data-label', 'Last Urgent Sent');
+            // Format date for display. Handle case where it might be a date object from server or string from preservation
+            const lastSentDate = (config.lastUrgentSent instanceof Date) ? config.lastUrgentSent.toLocaleString() : (config.lastUrgentSent ? new Date(config.lastUrgentSent).toLocaleString() : '');
+            row.cells[8].textContent = lastSentDate; 
+
+            row.insertCell().setAttribute('data-label', 'Notes');
+            row.cells[9].innerHTML = `<input type="text" value="${config.notes || ''}" data-field="notes" onchange="updateConfigItem(this, ${index})">`;
+
+
+            const actionsCell = row.insertCell();
+            actionsCell.setAttribute('data-label', 'Actions');
+            actionsCell.classList.add('action-buttons');
+            actionsCell.innerHTML = `
+                <button class="delete-button" onclick="deleteItemConfig(${index})">Delete</button>
+            `;
+        });
+    }
+
+    function updateConfigItem(inputElement, index) {
+        const field = inputElement.dataset.field;
+        let value = inputElement.value;
+
+        if (field === 'urgentThreshold' || field === 'dailyThreshold') {
+            value = parseInt(value);
+            if (isNaN(value) || value < 0) {
+                showMessage(`Please enter a valid positive number for ${field}.`, 'error');
+                inputElement.value = itemConfigs[index][field]; // Revert to old value
+                return;
+            }
+        }
+        itemConfigs[index][field] = value;
+        showMessage('Change staged. Click "Save All Changes" to apply.', 'info');
+    }
+
+    function addItemConfig() {
+        const newItemIdInput = document.getElementById('newItemId');
+        const newUrgentThresholdInput = document.getElementById('newUrgentThreshold');
+        const newUrgentComparisonSelect = document.getElementById('newUrgentComparison');
+        const newDailyThresholdInput = document.getElementById('newDailyThreshold');
+        const newDailyComparisonSelect = document.getElementById('newDailyComparison');
+        const newNotifyTypeSelect = document.getElementById('newNotifyType');
+        const newNotesInput = document.getElementById('newNotes');
+        const newEmailsInput = document.getElementById('newEmails');
+
+        // Extract only the Item ID from the input value
+        let rawItemIdInput = newItemIdInput.value.trim();
+        let itemId = rawItemIdInput;
+        const dashIndex = rawItemIdInput.indexOf(' - ');
+        if (dashIndex !== -1) {
+            itemId = rawItemIdInput.substring(0, dashIndex).trim();
+        }
+        
+        const urgentThreshold = parseInt(newUrgentThresholdInput.value);
+        const urgentComparison = newUrgentComparisonSelect.value;
+        const dailyThreshold = parseInt(newDailyThresholdInput.value);
+        const dailyComparison = newDailyComparisonSelect.value;
+        const notifyType = newNotifyTypeSelect.value;
+        const notes = newNotesInput.value.trim();
+        const emails = newEmailsInput.value.trim();
+
+        if (!itemId) {
+            showMessage('Item ID is required.', 'error');
+            return;
+        }
+        if (isNaN(urgentThreshold) || urgentThreshold < 0) {
+            showMessage('Urgent Threshold must be a positive number.', 'error');
+            return;
+        }
+        if (isNaN(dailyThreshold) || dailyThreshold < 0) {
+            showMessage('Daily Threshold must be a positive number.', 'error');
+            return;
+        }
+        if (itemConfigs.some(config => normalizeString(config.itemId) === normalizeString(itemId))) {
+            showMessage(`Configuration for Item ID "${itemId}" already exists. Please edit the existing entry.`, 'error');
+            return;
+        }
+
+        // Optional: Validate email format if needed
+        const emailArray = emails.split(',').map(e => e.trim()).filter(Boolean);
+        const invalidEmails = emailArray.filter(e => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+        if (invalidEmails.length > 0) {
+            showMessage(`Invalid email format detected: ${invalidEmails.join(', ')}`, 'error');
+            return;
+        }
+
+        itemConfigs.push({
+            itemId: itemId,
+            urgentThreshold: urgentThreshold,
+            urgentComparison: urgentComparison,
+            dailyThreshold: dailyThreshold,
+            dailyComparison: dailyComparison,
+            notifyType: notifyType,
+            notes: notes,
+            emails: emails,
+            onOrderFlag: '', // New items start with flag off
+            lastUrgentSent: '' // New items start with no sent date
+        });
+
+        renderConfigTable();
+        showMessage('Item configuration added. Click "Save All Changes" to apply.', 'success');
+
+        // Clear form
+        newItemIdInput.value = '';
+        newUrgentThresholdInput.value = '0';
+        newUrgentComparisonSelect.value = 'less_than_or_equal';
+        newDailyThresholdInput.value = '5';
+        newDailyComparisonSelect.value = 'less_than_or_equal';
+        newNotifyTypeSelect.value = 'both';
+        newNotesInput.value = '';
+        newEmailsInput.value = '';
+    }
+
+    function deleteItemConfig(index) {
+        if (confirm(`Are you sure you want to delete the configuration for item ID "${itemConfigs[index].itemId}"? This cannot be undone.`)) {
+            itemConfigs.splice(index, 1);
+            renderConfigTable();
+            showMessage('Item configuration deleted. Click "Save All Changes" to apply.', 'success');
+        }
+    }
+
+    function saveAllItemConfigs() {
+        showMessage('Saving all configurations...', 'info');
         google.script.run
             .withSuccessHandler(function() {
-                showMessage('Settings saved successfully!', 'success');
+                showMessage('All configurations saved successfully!', 'success');
+                loadItemConfigs(); // Reload to confirm state
             })
             .withFailureHandler(function(error) {
-                showMessage('Error saving config: ' + error.message, 'error');
-                console.error('Error saving config:', error);
+                showMessage('Error saving configurations: ' + error.message, 'error');
+                console.error('Error saving configurations:', error);
             })
-            .saveAppSettings({
-                urgentThreshold: parseInt(urgentThreshold), // Ensure numbers are passed
-                lowThreshold: parseInt(lowThreshold),     // Ensure numbers are passed
-                defaultEmails: defaultEmails
-            }); // Call the Apps Script function
+            .saveIndividualItemConfigs(itemConfigs);
+    }
+
+    // --- Global Default Emails Functions ---
+    function loadGlobalDefaultEmails() {
+        console.log("Loading global default emails...");
+        google.script.run
+            .withSuccessHandler(function(emails) {
+                document.getElementById('globalDefaultEmails').value = emails.join(', ');
+                showMessage('Global default emails loaded.', 'success');
+            })
+            .withFailureHandler(function(error) {
+                showMessage('Error loading global default emails: ' + error.message, 'error');
+                console.error('Error loading global default emails:', error);
+            })
+            .getGlobalDefaultEmails();
+    }
+
+    function saveGlobalDefaultEmails() {
+        console.log("Saving global default emails...");
+        const emailsInput = document.getElementById('globalDefaultEmails').value.trim();
+        const emailArray = emailsInput.split(',').map(e => e.trim()).filter(Boolean);
+
+        const invalidEmails = emailArray.filter(e => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+        if (invalidEmails.length > 0) {
+            showMessage(`Invalid email format detected: ${invalidEmails.join(', ')}`, 'error');
+            return;
+        }
+
+        showMessage('Saving global default emails...', 'info');
+        google.script.run
+            .withSuccessHandler(function() {
+                showMessage('Global default emails saved successfully!', 'success');
+            })
+            .withFailureHandler(function(error) {
+                showMessage('Error saving global default emails: ' + error.message, 'error');
+                console.error('Error saving global default emails:', error);
+            })
+            .saveGlobalDefaultEmails(emailArray);
     }
   </script>
 </body>

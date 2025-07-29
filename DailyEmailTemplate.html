@@ -41,33 +41,37 @@
     .content p {
       margin-bottom: 15px;
     }
-    .order-details {
-      background-color: #f9f9f9;
-      border: 1px solid #e0e0e0;
+    .summary-details {
+      background-color: #e6f7ff; /* Light blue background for summaries */
+      border: 1px solid #b3e0ff; /* Blue border */
       border-radius: 8px;
       padding: 20px;
       margin-top: 20px;
     }
-    .order-details table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 15px;
+    .summary-details h3 {
+      color: #007AFF; /* Primary blue for summary title */
+      margin-top: 0;
+      font-size: 20px;
+      text-align: center;
     }
-    .order-details th, .order-details td {
-      border: 1px solid #dddddd;
-      padding: 10px;
-      text-align: left;
+    .summary-details ul {
+      list-style: none;
+      padding: 0;
+      margin: 15px 0 0 0;
     }
-    .order-details th {
-      background-color: #eaf2f8; /* Light blue header */
+    .summary-details li {
+      margin-bottom: 10px;
+      padding-bottom: 10px;
+      border-bottom: 1px dashed #cceeff; /* Lighter dashed line */
+    }
+    .summary-details li:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+    .summary-details li strong {
       color: #333333;
-    }
-    .order-item-notes { /* Style for item notes in email */
-        font-size: 0.85em;
-        font-style: italic;
-        color: #666666;
-        margin-top: 5px;
-        white-space: pre-wrap; /* Preserve formatting and break lines */
+      font-size: 1.1em;
     }
     .button-link { /* Style for the action button-like links */
         display: inline-block;
@@ -111,52 +115,27 @@
     </div>
     <div class="content">
       <p>Dear recipient,</p>
-      <p>A new order has been submitted through the Jigsaw Inventory Portal:</p>
+      <p>Here is your daily summary of low stock items in the Jigsaw Inventory:</p>
 
-      <div class="order-details">
-        <h2>Order Confirmation: <strong>#<?= orderNumber ?></strong></h2>
-        <p>Thank you for submitting your order. Here are the details:</p>
-        
-        <? if (orderNotes && orderNotes.trim() !== '') { ?>
-            <p><strong>Order Notes:</strong><br><?= orderNotes ?></p>
-        <? } ?>
-
-        <table>
-          <thead>
-            <tr>
-              <th>Item ID</th>
-              <th>Product Name</th>
-              <th>Quantity</th>
-              <th>Notes</th>
-            </tr>
-          </thead>
-          <tbody>
-            <? for (var i = 0; i < items.length; i++) { ?>
-              <tr>
-                <td><?= items[i].itemId ?></td>
-                <td><?= items[i].itemName ?></td>
-                <td><?= items[i].qty ?></td>
-                <td>
-                    <? if (items[i].itemNotes && items[i].itemNotes.trim() !== '') { ?>
-                        <div class="order-item-notes"><?= items[i].itemNotes ?></div>
-                    <? } else { ?>
-                        N/A
-                    <? } ?>
-                </td>
-              </tr>
+      <div class="summary-details">
+        <h3>📊 Daily Stock Summary 📊</h3>
+        <ul>
+          <? if (lowStockItems.length > 0) { ?>
+            <? for (var i = 0; i < lowStockItems.length; i++) { ?>
+              <li>
+                <strong>Item ID: <?= lowStockItems[i].itemId ?></strong><br>
+                Quantity: <?= lowStockItems[i].qty ?><br>
+                Daily Threshold: <?= lowStockItems[i].threshold ?>
+              </li>
             <? } ?>
-          </tbody>
-        </table>
-
-        <p style="text-align: center; margin-top: 25px;">
-            <a href="<?= appUrl ?>?action=processOrder&orderNum=<?= orderNumber ?>" 
-               target="_blank" 
-               class="button-link">
-                Mark Order #<?= orderNumber ?> as Processing
-            </a>
-        </p>
+          <? } else { ?>
+            <li>No items currently below daily threshold.</li>
+          <? } ?>
+        </ul>
       </div>
 
+      <p>Please review your inventory and take action as needed.</p>
+      
       <p style="text-align: center; margin-top: 30px;">
         <a href="https://script.google.com/macros/s/AKfycbzwPQ1L9iEnRhTxLvvvmkZ49pJr9XeD617PAOjD1HewJVm7nudaf7HwQmyZbfRgN7ed/exec" 
            target="_blank" 
@@ -170,7 +149,6 @@
         </a>
       </p>
 
-      <p>If you have any questions regarding this order, please do not hesitate to contact us.</p>
       <p>Best regards,<br>The <span class="jigsaw-brand">Jigsaw Design | Print | Website</span> Team</p>
     </div>
     <div class="confidentiality">

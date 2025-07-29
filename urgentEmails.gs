@@ -2,65 +2,117 @@ function queueUrgentStockAlerts() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const configSheet = ss.getSheetByName("Config");
   const queueSheet = ss.getSheetByName("Urgent Queue");
-  if (!configSheet || !queueSheet) return;
+  const stockTrackerSheet = ss.getSheetByName("Stock Tracker"); // Needed for getItemQuantity
+  const inksTrackerSheet = ss.getSheetByName("Inks Tracker"); // Needed for getItemQuantity
 
-  const config = configSheet.getDataRange().getValues().slice(1); // Skip header
+  if (!configSheet || !queueSheet || !stockTrackerSheet || !inksTrackerSheet) {
+    Logger.log("❌ Missing required sheet(s) for urgent stock alerts.");
+    return;
+  }
+
+  const configData = configSheet.getDataRange().getValues(); // Get all config data including headers
+  const configHeaders = configData[0];
+  const configRows = configData.slice(1);
+
+  // Dynamically find column indices based on headers from screenshot
+  const configItemIdCol = configHeaders.indexOf("Item ID"); // A
+  const urgentThresholdCol = configHeaders.indexOf("Urgent Threshold"); // B
+  const urgentComparisonCol = configHeaders.indexOf("Urgent Comparison"); // C
+  const notifyTypeCol = configHeaders.indexOf("Notify Type"); // F
+  const emailsCol = configHeaders.indexOf("Emails"); // G
+  const onOrderFlagCol = configHeaders.indexOf("On Order Flag"); // H
+  const lastUrgentSentCol = configHeaders.indexOf("Last Urgent Sent"); // I
+
+  if ([configItemIdCol, urgentThresholdCol, urgentComparisonCol, notifyTypeCol, emailsCol, onOrderFlagCol, lastUrgentSentCol].some(col => col === -1)) {
+    Logger.log("❌ Missing one or more required headers in 'Config' sheet for urgent stock alerts based on screenshot.");
+    return;
+  }
+
   const now = new Date();
+  const oneDayAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000)); // 24 hours ago
 
-  config.forEach(row => {
-    const [itemId, urgentThreshold, , typeRaw] = row;
-    const type = String(typeRaw || '').toLowerCase();
+  configRows.forEach((row, index) => { // index is 0-based for configRows array
+    const itemId = row[configItemIdCol];
+    const urgentThreshold = !isNaN(parseInt(row[urgentThresholdCol])) ? parseInt(row[urgentThresholdCol]) : 0;
+    const urgentComparison = row[urgentComparisonCol] ? row[urgentComparisonCol].toString().trim() : 'less_than_or_equal';
+    const notifyType = String(row[notifyTypeCol] || '').toLowerCase();
+    const emails = row[emailsCol] ? row[emailsCol].toString().trim() : '';
+    const lastUrgentSent = row[lastUrgentSentCol];
+    const onOrderFlag = row[onOrderFlagCol] ? row[onOrderFlagCol].toString().trim() : '';
 
-    if (!itemId || !['urgent', 'both'].includes(type)) return;
+    if (!itemId || !['urgent', 'both'].includes(notifyType) || !emails) return;
+
+    // Check if an urgent email was sent recently (within 24 hours) for this item
+    let sentRecently = false;
+    if (lastUrgentSent instanceof Date) {
+      if (lastUrgentSent.getTime() > oneDayAgo.getTime()) {
+        sentRecently = true;
+      }
+    }
 
     const currentQty = getItemQuantity(itemId);
-    if (currentQty === undefined || currentQty > urgentThreshold) return;
+    if (currentQty === undefined) return;
 
-    const lastRow = queueSheet.getLastRow();
+    // Evaluate Urgent Threshold based on comparison type
+    let isUrgent = false;
+    if (urgentComparison === 'less_than') {
+        isUrgent = (currentQty < urgentThreshold);
+    } else { // default to less_than_or_equal
+        isUrgent = (currentQty <= urgentThreshold);
+    }
+
+    // Suppress urgent if On Order Flag is true
+    const suppressUrgent = (onOrderFlag === 'TRUE');
+
+    if (!isUrgent) return; // If not urgent, no need to queue
+
+    // If already sent recently OR suppressed by On Order Flag, skip queuing
+    if (sentRecently) {
+      Logger.log(`ℹ️ Urgent email for ${itemId} was sent recently. Skipping queueing.`);
+      return;
+    }
+    if (suppressUrgent) {
+      Logger.log(`ℹ️ Urgent email for ${itemId} suppressed because replenishment is on order.`);
+      return; // Skip this item due to On Order Flag
+    }
+
+    const lastQueueRow = queueSheet.getLastRow();
     let alreadyQueued = false;
 
-    if (lastRow > 1) {
-      const queuedItems = queueSheet.getRange(2, 1, lastRow - 1, 1).getValues().flat();
+    if (lastQueueRow > 1) {
+      const queuedItems = queueSheet.getRange(2, 1, lastQueueRow - 1, 1).getValues().flat();
       alreadyQueued = queuedItems.includes(itemId);
     }
 
     if (!alreadyQueued) {
       queueSheet.appendRow([itemId, currentQty, urgentThreshold, now]);
+      Logger.log(`✅ Queued urgent alert for ${itemId}.`);
+    } else {
+      Logger.log(`ℹ️ ${itemId} is already in the urgent queue.`);
     }
   });
 
-  // Ensure a valid 5-min delayed trigger exists
   ensureUrgentEmailTriggerExists();
 }
 
 
 function ensureUrgentEmailTriggerExists() {
   const triggers = ScriptApp.getProjectTriggers();
-  let found = false;
-
+  
+  // Delete any existing triggers for sendBatchedUrgentEmail
   triggers.forEach(trigger => {
     if (trigger.getHandlerFunction() === "sendBatchedUrgentEmail") {
-      try {
-        // Validate trigger by checking its source
-        const triggerSource = trigger.getTriggerSource(); // throws if invalid
-        found = true;
-      } catch (e) {
-        // It's a broken trigger — remove it
-        ScriptApp.deleteTrigger(trigger);
-        found = false;
-      }
+      Logger.log(`⚠️ Deleting existing trigger for sendBatchedUrgentEmail (to ensure fresh 5-min trigger).`);
+      ScriptApp.deleteTrigger(trigger);
     }
   });
 
-  if (!found) {
-    ScriptApp.newTrigger("sendBatchedUrgentEmail")
-             .timeBased()
-             .after(5 * 60 * 1000)
-             .create();
-    Logger.log("✅ Created new time-based trigger for sendBatchedUrgentEmail.");
-  } else {
-    Logger.log("⏱️ Valid trigger already exists for sendBatchedUrgentEmail.");
-  }
+  // Create a new one-time trigger that fires 5 minutes from now
+  ScriptApp.newTrigger("sendBatchedUrgentEmail")
+           .timeBased()
+           .after(5 * 60 * 1000) // 5 minutes in milliseconds
+           .create();
+  Logger.log("✅ Created new ONE-TIME time-based trigger for sendBatchedUrgentEmail (fires in 5 minutes).");
 }
 
 
@@ -68,50 +120,89 @@ function sendBatchedUrgentEmail() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const queueSheet = ss.getSheetByName("Urgent Queue");
   const configSheet = ss.getSheetByName("Config");
-  if (!queueSheet || !configSheet) return;
+  if (!queueSheet || !configSheet) {
+    Logger.log("❌ Missing required sheet(s) for sending batched urgent email.");
+    return;
+  }
 
   const lastRow = queueSheet.getLastRow();
-  if (lastRow <= 1) return;
+  if (lastRow <= 1) {
+    Logger.log("No items in Urgent Queue. Skipping email.");
+    return;
+  }
 
-  const queueData = queueSheet.getRange(2, 1, lastRow - 1, 4).getValues(); // [itemId, qty, threshold, timestamp]
-  const configData = configSheet.getDataRange().getValues(); // include header
+  const queueData = queueSheet.getRange(2, 1, lastRow - 1, 4).getValues();
+  
+  const fullConfigData = configSheet.getDataRange().getValues(); 
+  const configHeaders = fullConfigData[0];
+  const configRows = fullConfigData.slice(1);
 
-  const itemIds = [];
-  let body = "🚨 *URGENT STOCK ALERT*\n\nThe following items are below their urgent thresholds:\n\n";
+  // Dynamically find column indices based on headers from screenshot
+  const configItemIdCol = configHeaders.indexOf("Item ID"); // A
+  const emailsCol = configHeaders.indexOf("Emails"); // G
+  const lastUrgentSentCol = configHeaders.indexOf("Last Urgent Sent"); // I
+
+  if ([configItemIdCol, emailsCol, lastUrgentSentCol].some(col => col === -1)) {
+    Logger.log("❌ Missing required headers in 'Config' sheet for sending batched urgent email based on screenshot.");
+    return;
+  }
+
+  const urgentItemsForEmail = [];
+  const allRecipients = new Set();
 
   queueData.forEach(([itemId, qty, threshold]) => {
-    itemIds.push(itemId);
-    body += `🔸 *${itemId}*\n     • Quantity: ${qty}\n     • Threshold: ${threshold}\n\n`;
+    urgentItemsForEmail.push({
+      itemId: itemId,
+      qty: qty,
+      threshold: threshold
+    });
+
+    const configRow = configRows.find(row => row[configItemIdCol] === itemId);
+    if (configRow) {
+      const itemEmailsRaw = configRow[emailsCol];
+      if (typeof itemEmailsRaw === 'string' && itemEmailsRaw.trim() !== '') {
+        itemEmailsRaw.split(",").map(e => e.trim()).forEach(e => allRecipients.add(e));
+      }
+    }
   });
 
-  const emailsSet = new Set();
-
-  for (let i = 1; i < configData.length; i++) {
-    const [itemId, , , , , , emailRaw] = configData[i];
-    if (itemIds.includes(itemId) && typeof emailRaw === 'string') {
-      emailRaw.split(",").map(e => e.trim()).forEach(e => emailsSet.add(e));
-    }
+  const recipients = Array.from(allRecipients).join(",");
+  if (!recipients) {
+    Logger.log("No valid recipients found for urgent alert. Skipping email.");
+    return;
   }
 
-  const recipients = Array.from(emailsSet).join(",");
-  if (!recipients) return;
+  try {
+    const template = HtmlService.createTemplateFromFile('UrgentEmailTemplate');
+    template.urgentItems = urgentItemsForEmail;
+    template.appUrl = ScriptApp.getService().getUrl();
+    template.googleSheetUrl = "https://docs.google.com/spreadsheets/d/1yWypw_j9PBtQRND_m6ayAr_I9gDXsJvGQ8eIu5XGEcY/edit?gid=0#gid=0";
 
-  MailApp.sendEmail({
-    to: recipients,
-    subject: "🚨 Urgent Inventory Alert – Immediate Attention Required",
-    body: body
-  });
+    const htmlBody = template.evaluate().getContent();
 
-  // ✅ Update "Last Urgent Sent" (column F = index 5, zero-based)
-  const now = new Date();
-  for (let i = 1; i < configData.length; i++) {
-    const [itemId] = configData[i];
-    if (itemIds.includes(itemId)) {
-      configSheet.getRange(i + 1, 6).setValue(now); // row = i+1 (because of header), col = 6 (F)
-    }
+    MailApp.sendEmail({
+      to: recipients,
+      subject: "🚨 Urgent Inventory Alert – Immediate Attention Required",
+      htmlBody: htmlBody
+    });
+    Logger.log(`✅ Urgent stock alert email sent to: ${recipients}`);
+
+    const now = new Date();
+    queueData.forEach(([itemId]) => {
+      const actualConfigRowIndex = fullConfigData.findIndex(row => row[configItemIdCol] === itemId);
+      
+      if (actualConfigRowIndex !== -1) {
+        configSheet.getRange(actualConfigRowIndex + 1, lastUrgentSentCol + 1).setValue(now);
+        Logger.log(`Updated Last Urgent Sent for ${itemId} in Config sheet.`);
+      } else {
+        Logger.log(`Warning: Item ID ${itemId} from queue not found in Config sheet for Last Urgent Sent update.`);
+      }
+    });
+
+    queueSheet.getRange(2, 1, lastRow - 1, queueSheet.getLastColumn()).clearContent();
+    Logger.log("Urgent queue cleared.");
+
+  } catch (e) {
+    Logger.log(`❌ Error sending urgent stock alert email: ${e.message}`);
   }
-
-  // ✅ Clear the urgent queue
-  queueSheet.getRange(2, 1, lastRow - 1, queueSheet.getLastColumn()).clearContent();
 }
-

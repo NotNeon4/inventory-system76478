@@ -41,33 +41,37 @@
     .content p {
       margin-bottom: 15px;
     }
-    .order-details {
-      background-color: #f9f9f9;
-      border: 1px solid #e0e0e0;
+    .alert-details {
+      background-color: #fff0f0; /* Light red background for alerts */
+      border: 1px solid #ffcccc; /* Red border */
       border-radius: 8px;
       padding: 20px;
       margin-top: 20px;
     }
-    .order-details table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 15px;
+    .alert-details h3 {
+      color: #cc0000; /* Darker red for alert title */
+      margin-top: 0;
+      font-size: 20px;
+      text-align: center;
     }
-    .order-details th, .order-details td {
-      border: 1px solid #dddddd;
-      padding: 10px;
-      text-align: left;
+    .alert-details ul {
+      list-style: none;
+      padding: 0;
+      margin: 15px 0 0 0;
     }
-    .order-details th {
-      background-color: #eaf2f8; /* Light blue header */
+    .alert-details li {
+      margin-bottom: 10px;
+      padding-bottom: 10px;
+      border-bottom: 1px dashed #ffdddd; /* Lighter dashed line */
+    }
+    .alert-details li:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+    .alert-details li strong {
       color: #333333;
-    }
-    .order-item-notes { /* Style for item notes in email */
-        font-size: 0.85em;
-        font-style: italic;
-        color: #666666;
-        margin-top: 5px;
-        white-space: pre-wrap; /* Preserve formatting and break lines */
+      font-size: 1.1em;
     }
     .button-link { /* Style for the action button-like links */
         display: inline-block;
@@ -111,52 +115,23 @@
     </div>
     <div class="content">
       <p>Dear recipient,</p>
-      <p>A new order has been submitted through the Jigsaw Inventory Portal:</p>
+      <p>The following items are currently below their urgent stock thresholds in the Jigsaw Inventory:</p>
 
-      <div class="order-details">
-        <h2>Order Confirmation: <strong>#<?= orderNumber ?></strong></h2>
-        <p>Thank you for submitting your order. Here are the details:</p>
-        
-        <? if (orderNotes && orderNotes.trim() !== '') { ?>
-            <p><strong>Order Notes:</strong><br><?= orderNotes ?></p>
-        <? } ?>
-
-        <table>
-          <thead>
-            <tr>
-              <th>Item ID</th>
-              <th>Product Name</th>
-              <th>Quantity</th>
-              <th>Notes</th>
-            </tr>
-          </thead>
-          <tbody>
-            <? for (var i = 0; i < items.length; i++) { ?>
-              <tr>
-                <td><?= items[i].itemId ?></td>
-                <td><?= items[i].itemName ?></td>
-                <td><?= items[i].qty ?></td>
-                <td>
-                    <? if (items[i].itemNotes && items[i].itemNotes.trim() !== '') { ?>
-                        <div class="order-item-notes"><?= items[i].itemNotes ?></div>
-                    <? } else { ?>
-                        N/A
-                    <? } ?>
-                </td>
-              </tr>
-            <? } ?>
-          </tbody>
-        </table>
-
-        <p style="text-align: center; margin-top: 25px;">
-            <a href="<?= appUrl ?>?action=processOrder&orderNum=<?= orderNumber ?>" 
-               target="_blank" 
-               class="button-link">
-                Mark Order #<?= orderNumber ?> as Processing
-            </a>
-        </p>
+      <div class="alert-details">
+        <h3>🚨 Urgent Stock Alert 🚨</h3>
+        <ul>
+          <? for (var i = 0; i < urgentItems.length; i++) { ?>
+            <li>
+              <strong>Item ID: <?= urgentItems[i].itemId ?></strong><br>
+              Quantity: <?= urgentItems[i].qty ?><br>
+              Threshold: <?= urgentItems[i].threshold ?>
+            </li>
+          <? } ?>
+        </ul>
       </div>
 
+      <p>Please take immediate action to replenish these items.</p>
+      
       <p style="text-align: center; margin-top: 30px;">
         <a href="https://script.google.com/macros/s/AKfycbzwPQ1L9iEnRhTxLvvvmkZ49pJr9XeD617PAOjD1HewJVm7nudaf7HwQmyZbfRgN7ed/exec" 
            target="_blank" 
@@ -170,7 +145,6 @@
         </a>
       </p>
 
-      <p>If you have any questions regarding this order, please do not hesitate to contact us.</p>
       <p>Best regards,<br>The <span class="jigsaw-brand">Jigsaw Design | Print | Website</span> Team</p>
     </div>
     <div class="confidentiality">

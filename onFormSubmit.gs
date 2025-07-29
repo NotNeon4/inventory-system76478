@@ -1,4 +1,6 @@
 function onFormSubmit(e) {
+    Logger.log("Form submission detected. Running stock checks.");
+  runStockChecks();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const stockSheet = ss.getSheetByName("Stock Tracker");
   const formSheet = ss.getSheetByName("Materials Log");
