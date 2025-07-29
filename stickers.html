@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Print Stickers</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* Light Mode Colors */
+      --primary-blue: #007AFF;
+      --text-dark: #1D1D1F;
+      --text-medium: #6E6E73;
+      --background-light: #F5F5F7;
+      --white: #FFFFFF;
+      --border-light: #E8E8ED;
+      --success-green: #34C759;
+      --error-red: #FF3B30;
+      --warning-orange: #FF9500;
+      --table-stripe: #FDFDFE; /* For striped table rows */
+      --table-hover: #F0F0F2; /* For table row hover */
+      --button-hover-bg: rgba(0, 122, 255, 0.08); /* Blue button hover */
+    }
+
+    /* Dark Mode Colors */
+    body.dark-mode {
+      --primary-blue: #0A84FF; /* Slightly different blue for dark mode */
+      --text-dark: #F5F5F7; /* Light text on dark background */
+      --text-medium: #AEAEB2; /* Lighter medium text */
+      --background-light: #1C1C1E; /* Dark background */
+      --white: #2C2C2E; /* Darker "white" for elements like containers/headers */
+      --border-light: #48484A; /* Darker border */
+      --success-green: #30D158;
+      --error-red: #FF453A;
+      --warning-orange: #FF9F0A;
+      --table-stripe: #2C2C2E; /* Dark table stripe */
+      --table-hover: #3A3A3C; /* Dark table hover */
+      --button-hover-bg: rgba(10, 132, 255, 0.2); /* Dark blue button hover */
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: var(--background-light);
+      color: var(--text-dark);
+      line-height: 1.5;
+    }
+
+    .header {
+      background-color: var(--white);
+      padding: 15px 24px;
+      border-bottom: 1px solid var(--border-light);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .header .logo {
+      height: 35px;
+      display: block;
+    }
+    .header-nav button {
+      background: none;
+      border: none;
+      color: var(--primary-blue);
+      font-size: 16px;
+      font-weight: 500;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+      margin-left: 10px;
+    }
+    .header-nav button:hover {
+      background-color: var(--button-hover-bg);
+    }
+
+    .container {
+      max-width: 960px;
+      margin: 24px auto;
+      padding: 24px;
+      background-color: var(--white);
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+
+    .section-title {
+      font-size: 24px;
+      font-weight: 600;
+      color: var(--text-dark);
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: var(--text-dark);
+    }
+    .form-group input[type="text"],
+    .form-group input[type="number"] {
+      width: calc(100% - 24px); /* Adjust for padding */
+      padding: 12px;
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      font-size: 16px;
+      background-color: var(--background-light);
+      color: var(--text-dark);
+    }
+    .form-group input[type="text"]:focus,
+    .form-group input[type="number"]:focus {
+      outline: none;
+      border-color: var(--primary-blue);
+      box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.2);
+    }
+
+    .button-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+      justify-content: flex-end;
+    }
+    .button-group button {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.2s ease, transform 0.1s ease;
+    }
+    .button-group button.primary {
+      background-color: var(--primary-blue);
+      color: var(--white);
+    }
+    .button-group button.primary:hover {
+      background-color: #006DED;
+      transform: translateY(-1px);
+    }
+    .button-group button.secondary {
+      background-color: var(--background-light);
+      color: var(--text-dark);
+      border: 1px solid var(--border-light);
+    }
+    .button-group button.secondary:hover {
+      background-color: #E0E0E5;
+      transform: translateY(-1px);
+    }
+
+    #currentItems {
+      margin-top: 20px;
+      border: 1px dashed var(--border-light);
+      padding: 15px;
+      border-radius: 8px;
+    }
+    #currentItems h3 {
+      margin-top: 0;
+      font-size: 18px;
+      color: var(--text-dark);
+      margin-bottom: 10px;
+    }
+    .item-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .item-list li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border-light);
+      color: var(--text-medium);
+    }
+    .item-list li:last-child {
+      border-bottom: none;
+    }
+    .item-list button {
+      background-color: var(--error-red);
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background-color 0.2s ease;
+    }
+    .item-list button:hover {
+      background-color: #E63946;
+    }
+    .item-display-text {
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+    }
+    .item-display-text .item-name {
+        font-size: 14px;
+        color: var(--text-medium);
+    }
+
+    #messages {
+      margin-top: 24px;
+      padding: 16px;
+      border-radius: 8px;
+      text-align: center;
+      font-weight: 500;
+    }
+    .message.success {
+      background-color: var(--success-green);
+      color: var(--white);
+      border: 1px solid var(--success-green);
+    }
+    .message.error {
+      background-color: var(--error-red);
+      color: var(--white);
+      border: 1px solid var(--error-red);
+    }
+    .message.info {
+      background-color: var(--primary-blue);
+      color: var(--white);
+      border: 1px solid var(--primary-blue);
+    }
+
+    @media (max-width: 768px) {
+      .header {
+        flex-direction: column;
+        text-align: center;
+        gap: 10px;
+      }
+      .container {
+        margin: 15px;
+        padding: 15px;
+      }
+      .button-group {
+        flex-direction: column;
+      }
+      .button-group button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-nav">
+      <button onclick="google.script.run.withSuccessHandler(function(url) { window.open(url, '_top'); }).getIndexFileUrl()">Back to Portal</button>
+    </div>
+    <div style="flex-grow: 1; text-align: center;">
+        </div>
+    <div class="header-nav">
+      <button id="darkModeToggle" class="header-nav-button">Toggle Dark Mode</button>
+    </div>
+</div>
+
+  <div class="container">
+    <h2 class="section-title">Print Stickers</h2>
+
+    <div class="form-group">
+      <label for="itemId">Item ID / Name:</label>
+      <input type="text" id="itemId" list="itemIDs" placeholder="Start typing item ID or name..." autocomplete="off">
+      <datalist id="itemIDs"></datalist>
+    </div>
+
+    <div class="form-group">
+      <label for="quantity">Quantity (per sticker):</label>
+      <input type="number" id="quantity" value="1" min="1">
+    </div>
+
+    <div class="button-group">
+      <button type="button" class="secondary" onclick="addItemForStickerPrint()">Add Item</button>
+    </div>
+
+    <div id="currentItems">
+      <h3>Items to print:</h3>
+      <ul class="item-list" id="addedItemsList">
+        <li id="noItemsMessage">No items added yet.</li>
+      </ul>
+    </div>
+
+    <div class="button-group">
+      <button type="button" class="primary" onclick="generateAndPrintStickers()">Generate & Send to Printer</button>
+      <button type="button" class="secondary" onclick="resetStickerForm()">Reset</button>
+    </div>
+
+    <div id="messages"></div>
+
+  </div>
+
+  <script>
+    const itemsToPrint = [];
+    let availableItemDetails = []; // To store all item ID/Name pairs
+
+    // Helper function to normalize strings for comparison
+    function normalizeString(str) {
+      if (typeof str !== 'string') return '';
+      return str.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      // Dark Mode Initialization
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme === 'dark') {
+        document.body.classList.add('dark-mode');
+      }
+      const darkModeToggle = document.getElementById('darkModeToggle');
+      if (darkModeToggle) {
+        darkModeToggle.addEventListener('click', function() {
+          document.body.classList.toggle('dark-mode');
+          if (document.body.classList.contains('dark-mode')) {
+            localStorage.setItem('theme', 'dark');
+          } else {
+            localStorage.setItem('theme', 'light');
+          }
+        });
+      }
+
+      // Load all item IDs and names for the datalist
+      google.script.run
+        .withSuccessHandler(function(itemDetails) {
+          availableItemDetails = itemDetails;
+          const datalist = document.getElementById('itemIDs');
+          datalist.innerHTML = '';
+          if (availableItemDetails && availableItemDetails.length > 0) {
+            availableItemDetails.forEach(item => {
+              const option = document.createElement('option');
+              option.value = `${item.id} - ${item.name}`;
+              datalist.appendChild(option);
+            });
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.error('Error loading item list:', error);
+          showMessage('Failed to load item list: ' + error.message, 'error');
+        })
+        .getAllItemDetails(); // Assuming this function exists in code.gs
+
+      renderAddedItemsForStickerPrint();
+    });
+
+    function showMessage(msg, type) {
+      const messagesDiv = document.getElementById('messages');
+      messagesDiv.textContent = msg;
+      messagesDiv.className = 'message ' + type;
+      setTimeout(() => {
+        messagesDiv.textContent = '';
+        messagesDiv.className = 'message';
+      }, 5000);
+    }
+
+    function addItemForStickerPrint() {
+      const itemIdInput = document.getElementById('itemId');
+      const quantityInput = document.getElementById('quantity');
+
+      const inputVal = itemIdInput.value.trim();
+      const quantity = parseInt(quantityInput.value);
+
+      if (!inputVal) {
+        showMessage('Please enter an Item ID or select from the list.', 'error');
+        return;
+      }
+      if (isNaN(quantity) || quantity <= 0) {
+        showMessage('Quantity must be a positive number.', 'error');
+        return;
+      }
+
+      let selectedItem = null;
+      const normalizedInputVal = normalizeString(inputVal);
+
+      selectedItem = availableItemDetails.find(item => {
+        const normalizedItemCombined = normalizeString(`${item.id} - ${item.name}`);
+        return normalizedItemCombined === normalizedInputVal;
+      });
+
+      if (!selectedItem) {
+          selectedItem = availableItemDetails.find(item => normalizeString(item.id) === normalizedInputVal);
+      }
+      
+      if (!selectedItem) {
+          showMessage('Invalid Item ID or Name. Please select from the list or enter a valid ID.', 'error');
+          return;
+      }
+
+      const itemId = selectedItem.id;
+      const itemName = selectedItem.name;
+
+      const existingItemIndex = itemsToPrint.findIndex(item => item.itemId === itemId);
+
+      if (existingItemIndex > -1) {
+        itemsToPrint[existingItemIndex].qty += quantity;
+        showMessage(`Updated quantity for ${itemName} (${itemId}).`, 'info');
+      } else {
+        itemsToPrint.push({ itemId, itemName, qty: quantity });
+        showMessage(`Added ${itemName} (${itemId}) (Qty: ${quantity}).`, 'success');
+      }
+
+      renderAddedItemsForStickerPrint();
+      itemIdInput.value = '';
+      quantityInput.value = '1';
+    }
+
+    function removeItemForStickerPrint(button) {
+      const itemIdToRemove = button.dataset.item;
+      const index = itemsToPrint.findIndex(item => item.itemId === itemIdToRemove);
+
+      if (index > -1) {
+        itemsToPrint.splice(index, 1);
+        showMessage(`Removed item.`, 'success');
+        renderAddedItemsForStickerPrint();
+      }
+    }
+
+    function renderAddedItemsForStickerPrint() {
+      const list = document.getElementById('addedItemsList');
+      list.innerHTML = '';
+      if (itemsToPrint.length === 0) {
+        list.innerHTML = '<li id="noItemsMessage">No items added yet.</li>';
+      } else {
+        itemsToPrint.forEach(item => {
+          const li = document.createElement('li');
+          li.innerHTML = `
+            <span class="item-display-text">
+              <strong>${item.itemId}</strong>
+              <span class="item-name">${item.itemName}</span>
+              (Qty: ${item.qty})
+            </span>
+            <button data-item="${item.itemId}" onclick="removeItemForStickerPrint(this)">Remove</button>`;
+          list.appendChild(li);
+        });
+      }
+    }
+
+    function generateAndPrintStickers() {
+      if (itemsToPrint.length === 0) {
+        showMessage('Please add at least one item to print.', 'error');
+        return;
+      }
+
+      showMessage('Generating print job...', 'info');
+
+      google.script.run
+        .withSuccessHandler(function(response) {
+          if (response.success) {
+            showMessage(`Sticker print job generated and sent to printer queue! File: ${response.fileName}`, 'success');
+            resetStickerForm();
+          } else {
+            showMessage(`Error generating print job: ${response.message || 'Unknown error'}`, 'error');
+          }
+        })
+        .withFailureHandler(function(error) {
+          showMessage('Error generating print job: ' + error.message, 'error');
+          console.error('Sticker Print Job Failure:', error);
+        })
+        .generateStickerPrintJob(itemsToPrint); // Call the server-side function
+    }
+
+    function resetStickerForm() {
+      itemsToPrint.length = 0;
+      renderAddedItemsForStickerPrint();
+      document.getElementById('itemId').value = '';
+      document.getElementById('quantity').value = '1';
+      showMessage('Form reset.', 'info');
+    }
+  </script>
+</body>
+</html>
