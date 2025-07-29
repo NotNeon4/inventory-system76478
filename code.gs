@@ -1,8 +1,4 @@
 /**
- * @OnlyCurrentDoc
- */
-
-/**
  * Handles GET requests to the web app.
  * Routes to different HTML pages or handles specific actions based on URL parameters.
  * @param {Object} e The event object, containing URL parameters.
@@ -20,7 +16,13 @@ function doGet(e) {
     return HtmlService.createHtmlOutputFromFile('orderHistory')
       .setTitle('Jigsaw Order History')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-  } 
+  }
+  // NEW: Route to the sticker printing page
+  else if (e.parameter.page === 'stickers') {
+    return HtmlService.createHtmlOutputFromFile('stickers')
+      .setTitle('Jigsaw Sticker Print')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
   // Handle action to mark an order as processing (from email link)
   else if (e.parameter.action === 'processOrder') {
     const orderNum = e.parameter.orderNum;
@@ -32,7 +34,6 @@ function doGet(e) {
             .setTitle('Order Status Updated')
             .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
         } else {
-            // If updateOrderStatusByOrderNum returns false (order not found or already processed)
             return HtmlService.createHtmlOutput(`<p style="font-family: sans-serif; text-align: center; margin-top: 50px; font-size: 18px; color: orange;">Order <strong>${orderNum}</strong> not found or already processed.</p><p style="font-family: sans-serif; text-align: center; font-size: 14px;">Please check the order history.</p>`)
             .setTitle('Order Not Found/Already Processed')
             .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
@@ -55,6 +56,12 @@ function doGet(e) {
       .setTitle('Jigsaw Inventory Portal')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
+}
+
+// NEW: Function to get the URL for the stickers page
+function getStickersFileUrl() {
+  const url = ScriptApp.getService().getUrl();
+  return url + '?page=stickers';
 }
 
 /**
@@ -100,7 +107,6 @@ function pingTest() {
 function getAllItemDetails() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const productInfoSheet = ss.getSheetByName("Product info");
-
   if (!productInfoSheet) {
     Logger.log("Error: 'Product info' sheet not found in getAllItemDetails.");
     throw new Error("Required sheet 'Product info' not found.");
@@ -118,12 +124,10 @@ function getAllItemDetails() {
   
   const itemIds = itemIdsRange.getValues();
   const itemNames = itemNamesRange.getValues();
-
   const itemDetails = [];
   for (let i = 0; i < itemIds.length; i++) {
     const id = itemIds[i][0] ? itemIds[i][0].toString().trim() : '';
     const name = itemNames[i][0] ? itemNames[i][0].toString().trim() : '';
-
     if (id) {
       itemDetails.push({ id: id, name: name });
     }
@@ -168,8 +172,7 @@ function submitOrder(orderData) {
   const orderSheet = ss.getSheetByName("Orders");
   const orderItemsSheet = ss.getSheetByName("Order items");
   const configSheet = ss.getSheetByName("Config"); 
-  const productInfoSheet = ss.getSheetByName("Product info"); 
-
+  const productInfoSheet = ss.getSheetByName("Product info");
   if (!orderSheet || !orderItemsSheet || !configSheet || !productInfoSheet) {
     Logger.log("Error: One or more required sheets (Orders, Order items, Config, Product info) not found in submitOrder.");
     throw new Error("One or more required sheets not found.");
@@ -183,7 +186,6 @@ function submitOrder(orderData) {
   Logger.log("submitOrder: Recipient Emails received: " + JSON.stringify(recipientEmails));
   Logger.log("submitOrder: Items received: " + JSON.stringify(items));
   Logger.log("submitOrder: Order Notes received: '" + orderNotes + "'");
-
   if (!Array.isArray(recipientEmails)) {
     Logger.log("Error: submitOrder: recipientEmails is not an array. Value: " + JSON.stringify(recipientEmails));
     throw new Error("Invalid email recipients format. Expected an array of emails.");
@@ -209,7 +211,6 @@ function submitOrder(orderData) {
 
   const timestamp = new Date();
   const status = "Pending";
-
   // --- Prepare Product Info Map for Item Name lookup (for email template) ---
   const productInfoMap = new Map();
   const productInfoData = productInfoSheet.getDataRange().getValues();
@@ -217,7 +218,6 @@ function submitOrder(orderData) {
       const pHeaders = productInfoData[0];
       const pIdCol = pHeaders.indexOf("Item ID");
       const pNameCol = pHeaders.indexOf("Item Name");
-
       if (pIdCol === -1 || pNameCol === -1) {
           Logger.log("Warning: 'Item ID' or 'Item Name' header not found in 'Product info' for lookup.");
       } else {
@@ -239,7 +239,7 @@ function submitOrder(orderData) {
 
   if (!Array.isArray(items) || items.length === 0) {
       Logger.log("No items provided in the order (items array is empty).");
-      throw new Error("No items provided in the order.");
+    throw new Error("No items provided in the order.");
   }
 
   items.forEach(item => {
@@ -267,24 +267,19 @@ function submitOrder(orderData) {
       itemNotes: itemNotes
     });
   });
-
   // --- Update Sheets ---
   orderSheet.appendRow([newOrderNum, timestamp, validRecipientEmails.join(','), status, orderNotes]);
   Logger.log(`Order #${newOrderNum} added to Orders sheet.`);
-
   if (itemRowsForOrderItemsSheet.length > 0) {
       orderItemsSheet.getRange(orderItemsSheet.getLastRow() + 1, 1, itemRowsForOrderItemsSheet.length, itemRowsForOrderItemsSheet[0].length).setValues(itemRowsForOrderItemsSheet);
-      Logger.log(`Items for order #${newOrderNum} added to Order items sheet.`);
+    Logger.log(`Items for order #${newOrderNum} added to Order items sheet.`);
   }
 
   Logger.log("Stock deduction feature is disabled. Stock Tracker sheet was NOT updated.");
-
   // --- Send Confirmation Email ---
   sendOrderConfirmationEmail(validRecipientEmails, newOrderNum, itemsForEmailTemplate, orderNotes);
-
   // NEW: Update "On Order Flag" for items in this new order
   updateOnOrderFlag(itemRowsForOrderItemsSheet.map(row => row[1]), true);
-
   return { success: true, orderNum: newOrderNum };
 }
 
@@ -294,7 +289,7 @@ function submitOrder(orderData) {
  * @returns {Object} An object containing urgent and low stock items.
  */
 function getStockStatus() {
-  Logger.log("getStockStatus: Function started."); // DEBUG
+  Logger.log("getStockStatus: Function started.");
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const stockTrackerSheet = ss.getSheetByName("Stock Tracker");
   const inksTrackerSheet = ss.getSheetByName("Inks Tracker");
@@ -307,17 +302,16 @@ function getStockStatus() {
 
   const urgentItems = [];
   const lowItems = [];
-
   const configData = configSheet.getDataRange().getValues();
-  Logger.log("getStockStatus: Raw configData: " + JSON.stringify(configData)); // DEBUG
+  Logger.log("getStockStatus: Raw configData: " + JSON.stringify(configData));
   if (configData.length < 1) { // Check if sheet is completely empty
       Logger.log("Warning: Config sheet is empty. No item configurations to load.");
-      return { urgent: [], low: [], urgentThreshold: 0, lowThreshold: 5 }; // Return empty results
+    return { urgent: [], low: [], urgentThreshold: 0, lowThreshold: 5 };
   }
 
-  const configHeaders = configData[0].map(h => h.toString().trim()); // Get headers and trim
-  const configValues = configData.slice(1); // Actual data rows
-  Logger.log("getStockStatus: Trimmed configHeaders: " + JSON.stringify(configHeaders)); // DEBUG
+  const configHeaders = configData[0].map(h => h.toString().trim());
+  const configValues = configData.slice(1);
+  Logger.log("getStockStatus: Trimmed configHeaders: " + JSON.stringify(configHeaders));
 
   // Dynamically find column indices based on trimmed headers
   const configItemIdCol = configHeaders.indexOf("Item ID");
@@ -328,7 +322,6 @@ function getStockStatus() {
   const notifyTypeCol = configHeaders.indexOf("Notify Type");
   const emailsCol = configHeaders.indexOf("Emails");
   const onOrderFlagCol = configHeaders.indexOf("On Order Flag");
-
   // Validate headers are found
   if (configItemIdCol === -1 || urgentThresholdCol === -1 || urgentComparisonCol === -1 ||
       dailyThresholdCol === -1 || dailyComparisonCol === -1 || notifyTypeCol === -1 ||
@@ -346,10 +339,9 @@ function getStockStatus() {
     Logger.log("Missing headers detected by getStockStatus: " + missingHeaders.join(", "));
     throw new Error("Missing required headers in 'Config' sheet. Please check the sheet headers for exact spelling and no extra characters.");
   }
-  Logger.log("getStockStatus: All required header indices found."); // DEBUG
+  Logger.log("getStockStatus: All required header indices found.");
 
   const itemThresholdsMap = new Map();
-
   // Populate itemThresholdsMap from Config sheet
   configValues.forEach((row, rowIndex) => { // Added rowIndex for debugging
     // Defensive check for row length before accessing index
@@ -369,7 +361,6 @@ function getStockStatus() {
       const notifyType = row[notifyTypeCol] ? row[notifyTypeCol].toString().trim().toLowerCase() : 'both';
       const emails = row[emailsCol] ? row[emailsCol].toString().trim() : '';
       const onOrderFlag = row[onOrderFlagCol] ? row[onOrderFlagCol].toString().trim() : '';
-
       itemThresholdsMap.set(itemId, { 
         urgent: urgent, 
         urgentComparison: urgentComp,
@@ -379,29 +370,29 @@ function getStockStatus() {
         emails: emails,
         onOrderFlag: onOrderFlag
       });
-      Logger.log(`getStockStatus: Mapped item config for ${itemId}: ${JSON.stringify(itemThresholdsMap.get(itemId))}`); // DEBUG
+      Logger.log(`getStockStatus: Mapped item config for ${itemId}: ${JSON.stringify(itemThresholdsMap.get(itemId))}`);
     } else {
-        Logger.log(`Warning: getStockStatus: Skipping config row ${rowIndex + 2} due to empty Item ID.`); // DEBUG
+        Logger.log(`Warning: getStockStatus: Skipping config row ${rowIndex + 2} due to empty Item ID.`);
     }
   });
-  Logger.log(`getStockStatus: itemThresholdsMap size: ${itemThresholdsMap.size}`); // DEBUG
+  Logger.log(`getStockStatus: itemThresholdsMap size: ${itemThresholdsMap.size}`);
 
 
   // Helper function to process a single stock sheet
   const processStockSheet = (sheet, qtyColumnIndex) => {
     const lastRow = sheet.getLastRow();
     if (lastRow < 2) {
-      Logger.log(`No data in ${sheet.getName()} to check stock status.`); // DEBUG
+      Logger.log(`No data in ${sheet.getName()} to check stock status.`);
       return;
     }
     
     const stockValues = sheet.getDataRange().getValues();
     const stockHeaders = stockValues[0].map(h => h.toString().trim()); // Get headers and trim
     const stockDataRows = stockValues.slice(1);
-    Logger.log(`processStockSheet: Processing ${sheet.getName()}. Trimmed headers: ${JSON.stringify(stockHeaders)}`); // DEBUG
+    Logger.log(`processStockSheet: Processing ${sheet.getName()}. Trimmed headers: ${JSON.stringify(stockHeaders)}`);
 
     const stockItemIdCol = stockHeaders.indexOf("Item ID");
-    const stockQtyCol = qtyColumnIndex; // Assuming pre-determined column index by parameter
+    const stockQtyCol = qtyColumnIndex;
 
     if (stockItemIdCol === -1 || stockQtyCol === -1) { // Check dynamic indexOf for safety
       Logger.log(`Warning: Missing 'Item ID' or 'Quantity' header in ${sheet.getName()} for stock status. (Or quantity column index is wrong).`);
@@ -417,7 +408,7 @@ function getStockStatus() {
 
       const itemId = row[stockItemIdCol] ? row[stockItemIdCol].toString().trim() : '';
       const qty = row[stockQtyCol];
-      Logger.log(`processStockSheet: Checking ${sheet.getName()} row ${rowIndex + 2}: ItemID=${itemId}, Qty=${qty}`); // DEBUG
+      Logger.log(`processStockSheet: Checking ${sheet.getName()} row ${rowIndex + 2}: ItemID=${itemId}, Qty=${qty}`);
 
       if (typeof itemId === 'string' && itemId.trim() !== '' && typeof qty === 'number') {
         const config = itemThresholdsMap.get(itemId.trim());
@@ -426,7 +417,7 @@ function getStockStatus() {
           // Evaluate Urgent Threshold
           let isUrgent = false;
           if (config.urgentComparison === 'less_than') {
-              isUrgent = (qty < config.urgent);
+            isUrgent = (qty < config.urgent);
           } else { // default to less_than_or_equal
               isUrgent = (qty <= config.urgent);
           }
@@ -441,24 +432,23 @@ function getStockStatus() {
 
           // Suppress urgent if On Order Flag is true
           const suppressUrgent = (config.onOrderFlag === 'TRUE');
-          Logger.log(`  - Config: ${JSON.stringify(config)}, isUrgent=${isUrgent}, isDailyLow=${isDailyLow}, suppressUrgent=${suppressUrgent}`); // DEBUG
+          Logger.log(`  - Config: ${JSON.stringify(config)}, isUrgent=${isUrgent}, isDailyLow=${isDailyLow}, suppressUrgent=${suppressUrgent}`);
 
           if (isUrgent && (config.notifyType === 'urgent' || config.notifyType === 'both') && !suppressUrgent) {
             urgentItems.push({ ItemID: itemId, Qty: qty, Threshold: config.urgent, NotifyType: config.notifyType, Emails: config.emails });
-            Logger.log(`  - ADDED to Urgent: ${itemId}`); // DEBUG
+            Logger.log(`  - ADDED to Urgent: ${itemId}`);
           } else if (isDailyLow && (config.notifyType === 'daily' || config.notifyType === 'both')) {
             lowItems.push({ ItemID: itemId, Qty: qty, Threshold: config.daily, NotifyType: config.notifyType, Emails: config.emails });
-            Logger.log(`  - ADDED to Low: ${itemId}`); // DEBUG
+            Logger.log(`  - ADDED to Low: ${itemId}`);
           }
         } else {
           Logger.log(`Warning: Item ID '${itemId}' found in ${sheet.getName()} but not in Config (no thresholds configured for it).`);
         }
       } else {
-          Logger.log(`Warning: Skipping row ${rowIndex + 2} in ${sheet.getName()} due to invalid ItemID or Quantity (ItemID: '${itemId}', Qty: '${qty}').`); // DEBUG
+          Logger.log(`Warning: Skipping row ${rowIndex + 2} in ${sheet.getName()} due to invalid ItemID or Quantity (ItemID: '${itemId}', Qty: '${qty}').`);
       }
     });
   };
-
   // Process both stock sheets
   processStockSheet(stockTrackerSheet, 5); // Assuming Qty is in Column F (index 5) for Stock Tracker
   processStockSheet(inksTrackerSheet, 2); // Assuming Qty is in Column C (index 2) for Inks Tracker
@@ -468,7 +458,7 @@ function getStockStatus() {
   const defaultUrgentThreshold = 0; 
   const defaultLowThreshold = 5;     
 
-  Logger.log(`getStockStatus: Finished. Urgent items count: ${urgentItems.length}, Low items count: ${lowItems.length}`); // DEBUG
+  Logger.log(`getStockStatus: Finished. Urgent items count: ${urgentItems.length}, Low items count: ${lowItems.length}`);
   return { 
     urgent: urgentItems, 
     low: lowItems, 
@@ -501,8 +491,8 @@ function getGlobalDefaultEmails() {
         return [];
     }
 
-    const headers = configSheet.getRange(1, 1, 1, configSheet.getLastColumn()).getValues()[0].map(h => h.toString().trim()); // Trim headers
-    const defaultEmailsCol = headers.indexOf("Default Order Emails"); // Find column index by header name
+    const headers = configSheet.getRange(1, 1, 1, configSheet.getLastColumn()).getValues()[0].map(h => h.toString().trim());
+    const defaultEmailsCol = headers.indexOf("Default Order Emails");
 
     if (defaultEmailsCol === -1) {
         Logger.log("Error: 'Default Order Emails' column not found in Config sheet. Check spelling/existence.");
@@ -510,7 +500,7 @@ function getGlobalDefaultEmails() {
     }
 
     // Get value from row 2 (index 1) of the found column
-    const defaultEmailsRaw = configSheet.getRange(2, defaultEmailsCol + 1).getValue(); 
+    const defaultEmailsRaw = configSheet.getRange(2, defaultEmailsCol + 1).getValue();
     Logger.log("Raw global default emails from 'Default Order Emails' column: " + defaultEmailsRaw);
 
     let defaultEmails = [];
@@ -538,8 +528,8 @@ function saveGlobalDefaultEmails(emails) {
         throw new Error("Required sheet 'Config' not found.");
     }
 
-    const headers = configSheet.getRange(1, 1, 1, configSheet.getLastColumn()).getValues()[0].map(h => h.toString().trim()); // Trim headers
-    const defaultEmailsCol = headers.indexOf("Default Order Emails"); // Find column index by header name
+    const headers = configSheet.getRange(1, 1, 1, configSheet.getLastColumn()).getValues()[0].map(h => h.toString().trim());
+    const defaultEmailsCol = headers.indexOf("Default Order Emails");
 
     if (defaultEmailsCol === -1) {
         Logger.log("Error: 'Default Order Emails' column not found in Config sheet for saving. Check spelling/existence.");
@@ -549,7 +539,7 @@ function saveGlobalDefaultEmails(emails) {
     const emailsToSave = Array.isArray(emails) ? emails.join(',') : '';
     try {
         // Save to row 2 (index 1) of the found column
-        configSheet.getRange(2, defaultEmailsCol + 1).setValue(emailsToSave); 
+        configSheet.getRange(2, defaultEmailsCol + 1).setValue(emailsToSave);
         Logger.log(`Global default emails saved: ${emailsToSave}`);
     } catch (e) {
         Logger.log(`Error saving global default emails: ${e.message}`);
@@ -576,7 +566,6 @@ function sendOrderConfirmationEmail(recipientEmails, orderNumber, items, orderNo
   template.items = items;
   template.orderNotes = orderNotes;
   template.appUrl = ScriptApp.getService().getUrl();
-
   const htmlBody = template.evaluate().getContent();
 
   try {
@@ -598,12 +587,11 @@ function sendOrderConfirmationEmail(recipientEmails, orderNumber, items, orderNo
  * @returns {Array<Object>} An array of order objects, each containing order details and an 'items' array.
  */
 function getOrdersWithItems() {
-  Logger.log("getOrdersWithItems: Function started."); // DEBUG
+  Logger.log("getOrdersWithItems: Function started.");
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const orderSheet = ss.getSheetByName("Orders");
   const orderItemsSheet = ss.getSheetByName("Order items");
   const productInfoSheet = ss.getSheetByName("Product info");
-
   if (!orderSheet || !orderItemsSheet || !productInfoSheet) {
     Logger.log("Error: Required sheets (Orders, Order items, Product info) not found in getOrdersWithItems.");
     throw new Error("Required sheets 'Orders', 'Order items', or 'Product info' not found.");
@@ -615,12 +603,11 @@ function getOrdersWithItems() {
 
   if (lastProductInfoRow > 1) {
     const productInfoValues = productInfoSheet.getDataRange().getValues();
-    const productInfoHeaders = productInfoValues[0].map(h => h.toString().trim()); // Trim headers
-    Logger.log("getOrdersWithItems: ProductInfo Headers: " + JSON.stringify(productInfoHeaders)); // DEBUG
+    const productInfoHeaders = productInfoValues[0].map(h => h.toString().trim());
+    Logger.log("getOrdersWithItems: ProductInfo Headers: " + JSON.stringify(productInfoHeaders));
 
     const pIdCol = productInfoHeaders.indexOf("Item ID");
     const pNameCol = productInfoHeaders.indexOf("Item Name");
-
     if (pIdCol === -1 || pNameCol === -1) {
       Logger.log("Error: 'Item ID' or 'Item Name' columns not found in 'Product info' sheet for order history item lookup. Check spelling/existence.");
       throw new Error("Missing 'Item ID' or 'Item Name' columns in 'Product info' sheet.");
@@ -640,7 +627,6 @@ function getOrdersWithItems() {
     };
   }
   Logger.log(`Loaded ${itemDetailsMap.size} item details from 'Product info' for order history display.`);
-
   // 2. Get all Order data
   const lastOrderRow = orderSheet.getLastRow();
   if (lastOrderRow < 2) {
@@ -648,9 +634,9 @@ function getOrdersWithItems() {
     return [];
   }
   const orderValues = orderSheet.getDataRange().getValues();
-  const orderHeaders = orderValues[0].map(h => h.toString().trim()); // Trim headers
+  const orderHeaders = orderValues[0].map(h => h.toString().trim());
   const orderData = orderValues.slice(1);
-  Logger.log("getOrdersWithItems: Order Headers: " + JSON.stringify(orderHeaders)); // DEBUG
+  Logger.log("getOrdersWithItems: Order Headers: " + JSON.stringify(orderHeaders));
 
   const ordersMap = new Map();
   orderData.forEach((row, rowIndex) => {
@@ -675,7 +661,6 @@ function getOrdersWithItems() {
     order.status = row[statusCol] ? row[statusCol].toString().trim() : '';
     order.orderNotes = row[orderNotesCol] ? row[orderNotesCol].toString().trim() : '';
     order.items = [];
-
     if (order.orderNum) {
         ordersMap.set(order.orderNum, order);
     } else {
@@ -688,16 +673,14 @@ function getOrdersWithItems() {
   const lastOrderItemRow = orderItemsSheet.getLastRow();
   if (lastOrderItemRow > 1) {
     const orderItemValues = orderItemsSheet.getDataRange().getValues();
-    const orderItemHeaders = orderItemValues[0].map(h => h.toString().trim()); // Trim headers
+    const orderItemHeaders = orderItemValues[0].map(h => h.toString().trim());
     const orderItemData = orderItemValues.slice(1);
-    Logger.log("getOrdersWithItems: Order Items Headers: " + JSON.stringify(orderItemHeaders)); // DEBUG
+    Logger.log("getOrdersWithItems: Order Items Headers: " + JSON.stringify(orderItemHeaders));
 
     const oiOrderNumCol = orderItemHeaders.indexOf("Order #");
     const oiItemIdCol = orderItemHeaders.indexOf("Item ID");
-    const oiQtyCol = orderItemHeaders.indexOf("Quantity"); // Assumed "Quantity" as per config in emails.gs
+    const oiQtyCol = orderItemHeaders.indexOf("Quantity");
     const oiItemNotesCol = orderItemHeaders.indexOf("Item Notes");
-
-    // Validate headers
     if (oiOrderNumCol === -1 || oiItemIdCol === -1 || oiQtyCol === -1 || oiItemNotesCol === -1) {
         Logger.log("Error: Missing required columns (Order #, Item ID, Quantity, or Item Notes) in 'Order items' sheet. Check spelling/existence.");
         throw new Error("Missing required columns in 'Order items' sheet.");
@@ -718,9 +701,7 @@ function getOrdersWithItems() {
 
       if (ordersMap.has(orderNum)) {
         const order = ordersMap.get(orderNum);
-        const itemName = itemDetailsMap.has(itemId ? itemId.toLowerCase() : '')
-                         ? itemDetailsMap.get(itemId.toLowerCase())
-                         : 'Unknown Item Name';
+        const itemName = itemDetailsMap.has(itemId ? itemId.toLowerCase() : '') ? itemDetailsMap.get(itemId.toLowerCase()) : 'Unknown Item Name';
         order.items.push({ itemId: itemId, itemName: itemName, qty: qty, itemNotes: itemNotes });
       } else {
           Logger.log(`Warning: Order item (Order #${orderNum}, Item ${itemId}) found without a matching main order. (Row ${rowIndex + 2} in Order items).`);
@@ -747,7 +728,6 @@ function getSingleOrderDetails(orderNum) {
     const orderSheet = ss.getSheetByName("Orders");
     const orderItemsSheet = ss.getSheetByName("Order items");
     const productInfoSheet = ss.getSheetByName("Product info");
-
     if (!orderSheet || !orderItemsSheet || !productInfoSheet) {
         Logger.log("Error: Required sheets (Orders, Order items, Product info) not found in getSingleOrderDetails.");
         throw new Error("Required sheets 'Orders', 'Order items', or 'Product info' not found.");
@@ -762,13 +742,11 @@ function getSingleOrderDetails(orderNum) {
         const productInfoHeaders = productInfoValues[0].map(h => h.toString().trim());
         const pIdCol = productInfoHeaders.indexOf("Item ID");
         const pNameCol = productInfoHeaders.indexOf("Item Name");
-
         if (pIdCol === -1 || pNameCol === -1) {
             Logger.log("Error: 'Item ID' or 'Item Name' columns not found in 'Product info' sheet for single order item lookup. Check spelling/existence.");
-            // Continue, but item names might be 'Unknown'
         } else {
             for (let r = 1; r < productInfoValues.length; r++) {
-                if (productInfoValues[r].length <= Math.max(pIdCol, pNameCol)) continue; // Defensive check
+                if (productInfoValues[r].length <= Math.max(pIdCol, pNameCol)) continue;
                 const id = productInfoValues[r][pIdCol] ? productInfoValues[r][pIdCol].toString().trim() : '';
                 const name = productInfoValues[r][pNameCol] ? productInfoValues[r][pNameCol].toString().trim() : '';
                 if (id) itemDetailsMap.set(id.toLowerCase(), name);
@@ -792,14 +770,14 @@ function getSingleOrderDetails(orderNum) {
 
     let foundOrder = null;
     for (let i = 1; i < orderValues.length; i++) {
-        if (orderValues[i].length <= Math.max(orderNumCol, timestampCol, emailCol, statusCol, orderNotesCol)) continue; // Defensive check
+        if (orderValues[i].length <= Math.max(orderNumCol, timestampCol, emailCol, statusCol, orderNotesCol)) continue;
         if (orderValues[i][orderNumCol] && orderValues[i][orderNumCol].toString().trim() === orderNum.toString().trim()) {
             foundOrder = {
-                orderNum: row[orderNumCol].toString().trim(),
-                timestamp: (row[timestampCol] instanceof Date) ? row[timestampCol].toISOString() : (row[timestampCol] ? new Date(row[timestampCol]).toISOString() : null),
-                email: row[emailCol] ? row[emailCol].toString().trim() : '',
-                status: row[statusCol] ? row[statusCol].toString().trim() : '',
-                orderNotes: row[orderNotesCol] ? row[orderNotesCol].toString().trim() : '',
+                orderNum: orderValues[i][orderNumCol].toString().trim(), // Corrected 'row' to 'orderValues[i]'
+                timestamp: (orderValues[i][timestampCol] instanceof Date) ? orderValues[i][timestampCol].toISOString() : (orderValues[i][timestampCol] ? new Date(orderValues[i][timestampCol]).toISOString() : null), // Corrected 'row' to 'orderValues[i]'
+                email: orderValues[i][emailCol] ? orderValues[i][emailCol].toString().trim() : '', // Corrected 'row' to 'orderValues[i]'
+                status: orderValues[i][statusCol] ? orderValues[i][statusCol].toString().trim() : '', // Corrected 'row' to 'orderValues[i]'
+                orderNotes: orderValues[i][orderNotesCol] ? orderValues[i][orderNotesCol].toString().trim() : '', // Corrected 'row' to 'orderValues[i]'
                 items: []
             };
             break;
@@ -816,23 +794,20 @@ function getSingleOrderDetails(orderNum) {
     const orderItemHeaders = orderItemValues[0].map(h => h.toString().trim());
     const oiOrderNumCol = orderItemHeaders.indexOf("Order #");
     const oiItemIdCol = orderItemHeaders.indexOf("Item ID");
-    const oiQtyCol = orderItemHeaders.indexOf("Quantity"); // Assumed "Quantity" as per config in emails.gs
+    const oiQtyCol = orderItemHeaders.indexOf("Quantity");
     const oiItemNotesCol = orderItemHeaders.indexOf("Item Notes");
-
     if (oiOrderNumCol === -1 || oiItemIdCol === -1 || oiQtyCol === -1 || oiItemNotesCol === -1) {
         Logger.log("Error: Missing required columns (Order #, Item ID, Quantity, or Item Notes) in 'Order items' sheet for getSingleOrderDetails. Check spelling/existence.");
         throw new Error("Missing required columns in 'Order items' sheet.");
     }
 
     for (let i = 1; i < orderItemValues.length; i++) {
-        if (orderItemValues[i].length <= Math.max(oiOrderNumCol, oiItemIdCol, oiQtyCol, oiItemNotesCol)) continue; // Defensive check
+        if (orderItemValues[i].length <= Math.max(oiOrderNumCol, oiItemIdCol, oiQtyCol, oiItemNotesCol)) continue;
         if (orderItemValues[i][oiOrderNumCol] && orderItemValues[i][oiOrderNumCol].toString().trim() === orderNum.toString().trim()) {
             const itemId = orderItemValues[i][oiItemIdCol] ? orderItemValues[i][oiItemIdCol].toString().trim() : '';
             const qty = orderItemValues[i][oiQtyCol] ? Number(orderItemValues[i][oiQtyCol]) : 0;
             const itemNotes = orderItemValues[i][oiItemNotesCol] ? orderItemValues[i][oiItemNotesCol].toString().trim() : '';
-            const itemName = itemDetailsMap.has(itemId ? itemId.toLowerCase() : '')
-                             ? itemDetailsMap.get(itemId.toLowerCase())
-                             : 'Unknown Item Name';
+            const itemName = itemDetailsMap.has(itemId ? itemId.toLowerCase() : '') ? itemDetailsMap.get(itemId.toLowerCase()) : 'Unknown Item Name';
             foundOrder.items.push({ itemId: itemId, itemName: itemName, qty: qty, itemNotes: itemNotes });
         }
     }
@@ -866,7 +841,6 @@ function updateOrder(orderNum, newOrderNotes, updatedItems) {
     const orderHeaders = orderValues[0].map(h => h.toString().trim());
     const orderNumCol = orderHeaders.indexOf("Order #");
     const orderNotesCol = orderHeaders.indexOf("Order Notes");
-
     if (orderNumCol === -1 || orderNotesCol === -1) {
         Logger.log("Error: Missing 'Order #' or 'Order Notes' column in 'Orders' sheet for updateOrder.");
         throw new Error("Missing required columns in 'Orders' sheet.");
@@ -874,7 +848,7 @@ function updateOrder(orderNum, newOrderNotes, updatedItems) {
 
     // Find the order row in the 'Orders' sheet
     for (let i = 1; i < orderValues.length; i++) {
-        if (orderValues[i].length <= Math.max(orderNumCol, orderNotesCol)) continue; // Defensive check
+        if (orderValues[i].length <= Math.max(orderNumCol, orderNotesCol)) continue;
         if (orderValues[i][orderNumCol] && orderValues[i][orderNumCol].toString().trim() === orderNum.toString().trim()) {
             orderRowIndex = i;
             break;
@@ -897,9 +871,8 @@ function updateOrder(orderNum, newOrderNotes, updatedItems) {
 
     const oiOrderNumCol = orderItemHeaders.indexOf("Order #");
     const oiItemIdCol = orderItemHeaders.indexOf("Item ID");
-    const oiQtyCol = orderItemHeaders.indexOf("Quantity"); // Assumed "Quantity"
+    const oiQtyCol = orderItemHeaders.indexOf("Quantity");
     const oiItemNotesCol = orderItemHeaders.indexOf("Item Notes");
-
     if (oiOrderNumCol === -1 || oiItemIdCol === -1 || oiQtyCol === -1 || oiItemNotesCol === -1) {
         Logger.log("Error: Missing required columns in 'Order items' sheet for updateOrder.");
         throw new Error("Missing required columns in 'Order items' sheet.");
@@ -907,11 +880,10 @@ function updateOrder(orderNum, newOrderNotes, updatedItems) {
 
     // 2. Filter out old items for this order number
     const filteredOrderItems = currentOrderItemsData.filter(row => {
-        if (row.length <= oiOrderNumCol) return false; // Defensive check
+        if (row.length <= oiOrderNumCol) return false;
         return row[oiOrderNumCol] && row[oiOrderNumCol].toString().trim() !== orderNum.toString().trim();
     });
     Logger.log(`Removed existing items for order ${orderNum} from 'Order items' sheet.`);
-
     // 3. Prepare new items to be added for this order
     const newItemsForSheet = [];
     if (Array.isArray(updatedItems) && updatedItems.length > 0) {
@@ -942,7 +914,6 @@ function updateOrder(orderNum, newOrderNotes, updatedItems) {
     
     // Rewrite headers (optional but good for robustness if headers were cleared for some reason)
     orderItemsSheet.getRange(1, 1, 1, orderItemHeaders.length).setValues([orderItemHeaders]);
-
     const finalDataForOrderItemsSheet = filteredOrderItems.concat(newItemsForSheet);
     if (finalDataForOrderItemsSheet.length > 0) {
         // Use the maximum width of the new data or existing headers
@@ -952,7 +923,6 @@ function updateOrder(orderNum, newOrderNotes, updatedItems) {
     Logger.log(`Rewrote 'Order items' sheet with ${newItemsForSheet.length} new items for order ${orderNum}.`);
 
     SpreadsheetApp.flush();
-
     return { success: true, message: `Order ${orderNum} updated successfully.` };
 }
 
@@ -969,7 +939,6 @@ function updateOrderStatusByOrderNum(orderNum, newStatus) {
   const orderSheet = ss.getSheetByName("Orders");
   const orderItemsSheet = ss.getSheetByName("Order items");
   const configSheet = ss.getSheetByName("Config");
-
   if (!orderSheet || !orderItemsSheet || !configSheet) {
     Logger.log("Error: Required sheets (Orders, Order items, Config) not found in updateOrderStatusByOrderNum.");
     throw new Error("Required sheets 'Orders', 'Order items', or 'Config' not found.");
@@ -979,14 +948,13 @@ function updateOrderStatusByOrderNum(orderNum, newStatus) {
   const headers = values[0].map(h => h.toString().trim());
   const orderNumCol = headers.indexOf("Order #");
   const statusCol = headers.indexOf("Status");
-
   if (orderNumCol === -1 || statusCol === -1) {
     Logger.log("Error: Required columns (Order # or Status) not found in Orders sheet for updateOrderStatusByOrderNum.");
     throw new Error("Missing required columns in 'Orders' sheet.");
   }
 
   for (let i = 1; i < values.length; i++) {
-    if (values[i].length <= Math.max(orderNumCol, statusCol)) continue; // Defensive check
+    if (values[i].length <= Math.max(orderNumCol, statusCol)) continue;
     if (values[i][orderNumCol] && values[i][orderNumCol].toString().trim() === orderNum.toString().trim()) {
       orderSheet.getRange(i + 1, statusCol + 1).setValue(newStatus);
       Logger.log(`Order ${orderNum} status updated successfully.`);
@@ -1020,7 +988,6 @@ function getItemIDsForOrder(orderNum) {
     const headers = values[0].map(h => h.toString().trim());
     const oiOrderNumCol = headers.indexOf("Order #");
     const oiItemIdCol = headers.indexOf("Item ID");
-
     if (oiOrderNumCol === -1 || oiItemIdCol === -1) {
         Logger.log("Error: Missing 'Order #' or 'Item ID' columns in 'Order items' sheet for getItemIDsForOrder.");
         throw new Error("Missing required columns in 'Order items' sheet.");
@@ -1028,7 +995,7 @@ function getItemIDsForOrder(orderNum) {
 
     const itemIds = [];
     for (let i = 1; i < values.length; i++) {
-        if (values[i].length <= Math.max(oiOrderNumCol, oiItemIdCol)) continue; // Defensive check
+        if (values[i].length <= Math.max(oiOrderNumCol, oiItemIdCol)) continue;
         if (values[i][oiOrderNumCol] && values[i][oiOrderNumCol].toString().trim() === orderNum.toString().trim()) {
             itemIds.push(values[i][oiItemIdCol].toString().trim());
         }
@@ -1052,11 +1019,10 @@ function updateOnOrderFlag(itemIds, isOnOrder) {
     }
 
     const configData = configSheet.getDataRange().getValues();
-    const configHeaders = configData[0].map(h => h.toString().trim()); // Trim headers
+    const configHeaders = configData[0].map(h => h.toString().trim());
     const configRows = configData.slice(1);
-
     const configItemIdCol = configHeaders.indexOf("Item ID");
-    const onOrderFlagCol = configHeaders.indexOf("On Order Flag"); // Column H
+    const onOrderFlagCol = configHeaders.indexOf("On Order Flag");
 
     if (configItemIdCol === -1 || onOrderFlagCol === -1) {
         Logger.log("Error: Missing 'Item ID' or 'On Order Flag' column in 'Config' sheet for updateOnOrderFlag. Check spelling/existence.");
@@ -1065,7 +1031,7 @@ function updateOnOrderFlag(itemIds, isOnOrder) {
 
     let updatesMade = false;
     configRows.forEach((row, index) => {
-        if (row.length <= Math.max(configItemIdCol, onOrderFlagCol)) return; // Defensive check
+        if (row.length <= Math.max(configItemIdCol, onOrderFlagCol)) return;
         const itemIdInConfig = row[configItemIdCol] ? row[configItemIdCol].toString().trim() : '';
         if (itemIds.includes(itemIdInConfig)) {
             const newValue = isOnOrder ? "TRUE" : "";
@@ -1076,7 +1042,6 @@ function updateOnOrderFlag(itemIds, isOnOrder) {
             }
         }
     });
-
     if (updatesMade) {
         SpreadsheetApp.flush();
         Logger.log("Finished updating On Order Flags.");
@@ -1107,7 +1072,6 @@ function deleteOrderItems(orderNum, itemIdsToDelete) {
 
   const orderNumCol = headers.indexOf("Order #");
   const itemIdCol = headers.indexOf("Item ID");
-
   if (orderNumCol === -1 || itemIdCol === -1) {
     Logger.log("Error: Required columns (Order # or Item ID) not found in Order items sheet for deleteOrderItems.");
     throw new Error("Required columns (Order # or Item ID) not found in Order items sheet.");
@@ -1115,12 +1079,11 @@ function deleteOrderItems(orderNum, itemIdsToDelete) {
 
   let rowsToDelete = [];
   data.forEach((row, index) => {
-    if (row.length <= Math.max(orderNumCol, itemIdCol)) return; // Defensive check
+    if (row.length <= Math.max(orderNumCol, itemIdCol)) return;
     if (row[orderNumCol] && row[orderNumCol].toString().trim() === orderNum.toString().trim() && itemIdsToDelete.includes(row[itemIdCol].toString().trim())) {
       rowsToDelete.push(index + 2);
     }
   });
-
   rowsToDelete.sort((a, b) => b - a);
 
   for (let i = 0; i < rowsToDelete.length; i++) {
@@ -1157,13 +1120,12 @@ function removeEmailFromOrder(orderNum, emailToRemove) {
   }
 
   for (let i = 1; i < values.length; i++) {
-    if (values[i].length <= Math.max(orderNumCol, emailCol)) continue; // Defensive check
+    if (values[i].length <= Math.max(orderNumCol, emailCol)) continue;
     if (values[i][orderNumCol] && values[i][orderNumCol].toString().trim() === orderNum.toString().trim()) {
       let currentEmails = values[i][emailCol] ? values[i][emailCol].toString().split(',').map(e => e.trim()).filter(Boolean) : [];
       const initialLength = currentEmails.length;
 
       const newEmails = currentEmails.filter(email => email !== emailToRemove);
-
       if (newEmails.length === initialLength) {
         Logger.log(`Email "${emailToRemove}" not found for order ${orderNum}. No change made.`);
         return false;
@@ -1207,7 +1169,7 @@ function cancelOrder(orderNum) {
     }
 
     for (let i = 1; i < values.length; i++) {
-        if (values[i].length <= Math.max(orderNumCol, statusCol)) continue; // Defensive check
+        if (values[i].length <= Math.max(orderNumCol, statusCol)) continue;
         if (values[i][orderNumCol] && values[i][orderNumCol].toString().trim() === orderNum.toString().trim()) {
             orderSheet.getRange(i + 1, statusCol + 1).setValue("Cancelled");
             Logger.log(`Order ${orderNum} cancelled successfully.`);
@@ -1242,14 +1204,13 @@ function deleteOrderPermanently(orderNum) {
     const orderValues = orderSheet.getDataRange().getValues();
     const orderHeaders = orderValues[0].map(h => h.toString().trim());
     const orderNumCol = orderHeaders.indexOf("Order #");
-
     if (orderNumCol === -1) {
         Logger.log("Error: 'Order #' column not found in 'Orders' sheet for permanent deletion.");
         throw new Error("Missing 'Order #' column in 'Orders' sheet.");
     }
 
     for (let i = orderValues.length - 1; i >= 1; i--) {
-        if (orderValues[i].length <= orderNumCol) continue; // Defensive check
+        if (orderValues[i].length <= orderNumCol) continue;
         if (orderValues[i][orderNumCol] && orderValues[i][orderNumCol].toString().trim() === orderNum.toString().trim()) {
             orderSheet.deleteRow(i + 1);
             orderDeleted = true;
@@ -1262,7 +1223,6 @@ function deleteOrderPermanently(orderNum) {
     const orderItemValues = orderItemsSheet.getDataRange().getValues();
     const orderItemHeaders = orderItemValues[0].map(h => h.toString().trim());
     const oiOrderNumCol = orderItemHeaders.indexOf("Order #");
-
     if (oiOrderNumCol === -1) {
         Logger.log("Error: 'Order #' column not found in 'Order items' sheet for permanent deletion.");
         throw new Error("Missing 'Order #' column in 'Order items' sheet.");
@@ -1270,7 +1230,7 @@ function deleteOrderPermanently(orderNum) {
 
     let rowsToDeleteInOrderItems = [];
     for (let i = orderItemValues.length - 1; i >= 1; i--) {
-        if (orderItemValues[i].length <= oiOrderNumCol) continue; // Defensive check
+        if (orderItemValues[i].length <= oiOrderNumCol) continue;
         if (orderItemValues[i][oiOrderNumCol] && orderItemValues[i][oiOrderNumCol].toString().trim() === orderNum.toString().trim()) {
             rowsToDeleteInOrderItems.push(i + 1);
         }
@@ -1299,22 +1259,21 @@ function deleteOrderPermanently(orderNum) {
  * @returns {Array<Object>} An array of item configuration objects.
  */
 function getIndividualItemConfigs() {
-  Logger.log("getIndividualItemConfigs: Function started."); // DEBUG
+  Logger.log("getIndividualItemConfigs: Function started.");
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const configSheet = ss.getSheetByName("Config");
-
   if (!configSheet) {
-    Logger.log("Error: 'Config' sheet not found in getIndividualItemConfigs.");
-    throw new Error("Required sheet 'Config' not found.");
+    Logger.log("Error: 'Config' sheet not found in getIndividualItemConfigs. Returning empty array.");
+    return [];
   }
 
   const lastRow = configSheet.getLastRow();
   const lastColumn = configSheet.getLastColumn();
-  // Read all headers from row 1, trimming each one
+  Logger.log("Debug: lastRow: " + lastRow + ", lastColumn: " + lastColumn);
+  
   const allHeadersInSheet = configSheet.getRange(1, 1, 1, lastColumn).getValues()[0].map(h => h.toString().trim());
-  Logger.log("getIndividualItemConfigs: All headers found in sheet: " + JSON.stringify(allHeadersInSheet)); // DEBUG
+  Logger.log("Debug: allHeadersInSheet: " + JSON.stringify(allHeadersInSheet));
 
-  // Dynamically find column indices based on trimmed headers
   const headerMap = {};
   const requiredHeaders = [
     "Item ID", "Urgent Threshold", "Urgent Comparison", "Daily Threshold", "Daily Comparison",
@@ -1323,67 +1282,91 @@ function getIndividualItemConfigs() {
   requiredHeaders.forEach(h => {
     headerMap[h] = allHeadersInSheet.indexOf(h);
   });
-  Logger.log("getIndividualItemConfigs: Found header indices: " + JSON.stringify(headerMap)); // DEBUG
+  Logger.log("Debug: Found header indices: " + JSON.stringify(headerMap));
 
-  // Validate all required headers are found (after trimming)
   const missingHeaders = requiredHeaders.filter(h => headerMap[h] === -1);
   if (missingHeaders.length > 0) {
-    Logger.log("Error: Missing or misspelled required headers in 'Config' sheet: " + missingHeaders.join(", "));
-    throw new Error("Missing required headers in 'Config' sheet. Please verify exact spelling and no extra spaces.");
+    Logger.log("Error: Missing or misspelled required headers in 'Config' sheet: " + missingHeaders.join(", ") + ". Returning empty array.");
+    return []; 
   }
 
-  // Determine the number of columns to read based on the highest index of a required header
   const numColumnsToRead = Math.max(...Object.values(headerMap)) + 1;
-  Logger.log("getIndividualItemConfigs: Reading up to column index: " + (numColumnsToRead - 1)); // DEBUG
+  Logger.log("Debug: Calculated numColumnsToRead: " + numColumnsToRead);
 
-  if (lastRow < 2 || numColumnsToRead < 1) {
-    Logger.log("No data rows or readable columns found in 'Config' sheet (after header check).");
+  if (lastRow < 2) {
+    Logger.log("No data rows found in 'Config' sheet (lastRow < 2). Returning empty array.");
+    return [];
+  }
+  if (numColumnsToRead < 1) {
+    Logger.log("No readable columns found in 'Config' sheet (numColumnsToRead < 1). Returning empty array.");
     return [];
   }
 
-  // Read data starting from row 2 up to numColumnsToRead
-  const configValues = configSheet.getRange(2, 1, lastRow - 1, numColumnsToRead).getValues();
-  Logger.log("getIndividualItemConfigs: Raw configValues (data rows): " + JSON.stringify(configValues)); // DEBUG
-
+  let configValues;
+  try {
+      const actualRangeLastColumn = Math.min(lastColumn, numColumnsToRead);
+      configValues = configSheet.getRange(2, 1, lastRow - 1, actualRangeLastColumn).getValues();
+      Logger.log("Debug: Raw configValues (data rows from sheet.getRange): " + JSON.stringify(configValues));
+  } catch (e) {
+      Logger.log("Error reading config sheet range: " + e.message + ". Returning empty array.");
+      return [];
+  }
+  
   const configs = [];
-  configValues.forEach((row, rowIndex) => { // Added rowIndex for debugging
-    // Defensive check for row length before accessing index
-    if (row.length <= maxManagedColIndex) { // Using maxManagedColIndex from save function perspective for safety
-        Logger.log(`Warning: getIndividualItemConfigs: Skipping config row ${rowIndex + 2} due to insufficient columns to read all expected headers: ${JSON.stringify(row)}`);
+  configValues.forEach((row, rowIndex) => {
+    if (row.length <= headerMap["Item ID"] || !row[headerMap["Item ID"]]) {
+        Logger.log(`Warning: getIndividualItemConfigs: Skipping row ${rowIndex + 2} due to missing or empty Item ID. Row data: ${JSON.stringify(row)}`);
         return;
     }
 
-    const itemId = row[headerMap["Item ID"]] ? row[headerMap["Item ID"]].toString().trim() : '';
-    if (itemId) {
-      const urgentThreshold = row[headerMap["Urgent Threshold"]] !== undefined && !isNaN(parseInt(row[headerMap["Urgent Threshold"]])) ? parseInt(row[headerMap["Urgent Threshold"]]) : 0;
-      const urgentComparison = row[headerMap["Urgent Comparison"]] ? row[headerMap["Urgent Comparison"]].toString().trim() : 'less_than_or_equal';
-      const dailyThreshold = row[headerMap["Daily Threshold"]] !== undefined && !isNaN(parseInt(row[headerMap["Daily Threshold"]])) ? parseInt(row[headerMap["Daily Threshold"]]) : 5;
-      const dailyComparison = row[headerMap["Daily Comparison"]] ? row[headerMap["Daily Comparison"].toString().trim()] : 'less_than_or_equal';
-      const notifyType = row[headerMap["Notify Type"]] ? row[headerMap["Notify Type"]].toString().trim() : 'both';
-      const emails = row[headerMap["Emails"]] ? row[headerMap["Emails"]].toString().trim() : '';
-      const onOrderFlag = row[headerMap["On Order Flag"]] ? row[headerMap["On Order Flag"].toString().trim()] : '';
-      const notes = row[headerMap["Notes"]] ? row[headerMap["Notes"].toString().trim()] : '';
-      const lastUrgentSent = row[headerMap["Last Urgent Sent"]] || ''; 
+    const itemId = row[headerMap["Item ID"]].toString().trim();
+    
+    const urgentThreshold = row[headerMap["Urgent Threshold"]] !== undefined && row[headerMap["Urgent Threshold"]] !== null && !isNaN(parseInt(row[headerMap["Urgent Threshold"]])) ? parseInt(row[headerMap["Urgent Threshold"]]) : 0;
+    const urgentComparison = row[headerMap["Urgent Comparison"]] ? row[headerMap["Urgent Comparison"]].toString().trim() : 'less_than_or_equal';
+    const dailyThreshold = row[headerMap["Daily Threshold"]] !== undefined && row[headerMap["Daily Threshold"]] !== null && !isNaN(parseInt(row[headerMap["Daily Threshold"]])) ? parseInt(row[headerMap["Daily Threshold"]]) : 5;
+    const dailyComparison = row[headerMap["Daily Comparison"]] ? row[headerMap["Daily Comparison"]].toString().trim() : 'less_than_or_equal'; 
+    const notifyType = row[headerMap["Notify Type"]] ? row[headerMap["Notify Type"]].toString().trim() : 'both';
+    const emails = row[headerMap["Emails"]] ? row[headerMap["Emails"]].toString().trim() : '';
+    const onOrderFlag = row[headerMap["On Order Flag"]] ? row[headerMap["On Order Flag"]].toString().trim() : ''; 
+    const notes = row[headerMap["Notes"]] ? row[headerMap["Notes"]].toString().trim() : ''; 
 
-      configs.push({
-        itemId: itemId,
-        urgentThreshold: urgentThreshold,
-        urgentComparison: urgentComparison,
-        dailyThreshold: dailyThreshold,
-        dailyComparison: dailyComparison,
-        notifyType: notifyType,
-        notes: notes,
-        emails: emails,
-        onOrderFlag: onOrderFlag,
-        lastUrgentSent: lastUrgentSent
-      });
-      Logger.log(`getIndividualItemConfigs: Successfully parsed item config for ${itemId}: ${JSON.stringify(configs[configs.length - 1])}`); // DEBUG
-    } else {
-        Logger.log(`Warning: getIndividualItemConfigs: Skipping config row ${rowIndex + 2} due to empty Item ID.`); // DEBUG
+    let lastUrgentSent = '';
+    const rawLastUrgentSent = row[headerMap["Last Urgent Sent"]];
+    if (rawLastUrgentSent) {
+      if (rawLastUrgentSent instanceof Date) {
+        lastUrgentSent = rawLastUrgentSent.toLocaleString();
+      } else if (typeof rawLastUrgentSent === 'string' && rawLastUrgentSent.trim() !== '') {
+        try {
+          const parsedDate = new Date(rawLastUrgentSent);
+          if (!isNaN(parsedDate.getTime())) {
+            lastUrgentSent = parsedDate.toLocaleString();
+          } else {
+            lastUrgentSent = rawLastUrgentSent;
+          }
+        } catch (e) {
+          lastUrgentSent = rawLastUrgentSent;
+        }
+      } else {
+        lastUrgentSent = rawLastUrgentSent;
+      }
     }
+
+    configs.push({
+      itemId: itemId,
+      urgentThreshold: urgentThreshold,
+      urgentComparison: urgentComparison,
+      dailyThreshold: dailyThreshold,
+      dailyComparison: dailyComparison,
+      notifyType: notifyType,
+      notes: notes,
+      emails: emails,
+      onOrderFlag: onOrderFlag,
+      lastUrgentSent: lastUrgentSent
+    });
+    Logger.log(`Debug: Successfully parsed config for Item ID '${itemId}': ${JSON.stringify(configs[configs.length - 1])}`);
   });
 
-  Logger.log(`getIndividualItemConfigs: Function finished. Returning ${configs.length} item configurations.`); // DEBUG
+  Logger.log(`getIndividualItemConfigs: Function finished. Returning ${configs.length} item configurations.`);
   return configs;
 }
 
@@ -1395,39 +1378,35 @@ function getIndividualItemConfigs() {
  * @param {Array<Object>} configs - An array of item configuration objects.
  */
 function saveIndividualItemConfigs(configs) {
-  Logger.log("saveIndividualItemConfigs: Function started."); // DEBUG
+  Logger.log("saveIndividualItemConfigs: Function started.");
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const configSheet = ss.getSheetByName("Config");
-
   if (!configSheet) {
     Logger.log("Error: 'Config' sheet not found in saveIndividualItemConfigs.");
     throw new Error("Required sheet 'Config' not found.");
   }
 
   const existingData = configSheet.getDataRange().getValues();
-  const existingHeaders = existingData[0].map(h => h.toString().trim()); // Trim headers
+  const existingHeaders = existingData[0].map(h => h.toString().trim());
   const existingRows = existingData.slice(1);
-  Logger.log("saveIndividualItemConfigs: Existing headers: " + JSON.stringify(existingHeaders)); // DEBUG
+  Logger.log("saveIndividualItemConfigs: Existing headers: " + JSON.stringify(existingHeaders));
 
-  // Dynamically find column indices for preservation based on current headers
   const existingItemIdCol = existingHeaders.indexOf("Item ID");
   const existingLastUrgentSentCol = existingHeaders.indexOf("Last Urgent Sent");
   const existingOnOrderFlagCol = existingHeaders.indexOf("On Order Flag");
   const existingNotesCol = existingHeaders.indexOf("Notes");
-
   const lastUrgentSentMap = new Map();
   const onOrderFlagMap = new Map();
   const notesMap = new Map();
-
   if (existingItemIdCol !== -1) {
     existingRows.forEach(row => {
-      // Defensive check for row length before accessing index
       const maxColToCheck = Math.max(existingItemIdCol, existingLastUrgentSentCol, existingOnOrderFlagCol, existingNotesCol);
       if (row.length <= maxColToCheck) {
           Logger.log(`Warning: saveIndividualItemConfigs: Skipping existing row due to insufficient columns for flags/notes: ${JSON.stringify(row)}`);
           return;
       }
       const itemId = row[existingItemIdCol] ? row[existingItemIdCol].toString().trim() : '';
+    
       if (itemId) {
         if (existingLastUrgentSentCol !== -1) {
           const lastSentDate = row[existingLastUrgentSentCol];
@@ -1446,18 +1425,15 @@ function saveIndividualItemConfigs(configs) {
   } else {
     Logger.log("Warning: 'Item ID' column not found in existing Config data during save. Cannot preserve flags/notes. (This might be okay if sheet is empty).");
   }
-  Logger.log("saveIndividualItemConfigs: Preserved lastUrgentSentMap: " + JSON.stringify(Array.from(lastUrgentSentMap.entries()))); // DEBUG
-  Logger.log("saveIndividualItemConfigs: Preserved onOrderFlagMap: " + JSON.stringify(Array.from(onOrderFlagMap.entries()))); // DEBUG
-  Logger.log("saveIndividualItemConfigs: Preserved notesMap: " + JSON.stringify(Array.from(notesMap.entries()))); // DEBUG
+  Logger.log("saveIndividualItemConfigs: Preserved lastUrgentSentMap: " + JSON.stringify(Array.from(lastUrgentSentMap.entries())));
+  Logger.log("saveIndividualItemConfigs: Preserved onOrderFlagMap: " + JSON.stringify(Array.from(onOrderFlagMap.entries())));
+  Logger.log("saveIndividualItemConfigs: Preserved notesMap: " + JSON.stringify(Array.from(notesMap.entries())));
 
 
-  // Define the ordered list of headers that we manage in the UI, matching the config.html table
   const managedHeaderNames = [
       "Item ID", "Urgent Threshold", "Urgent Comparison", "Daily Threshold", "Daily Comparison",
       "Notify Type", "Emails", "On Order Flag", "Last Urgent Sent", "Notes"
   ];
-
-  // Calculate the highest index used by these managed headers in the *existing* sheet
   let maxManagedColIndex = -1;
   managedHeaderNames.forEach(name => {
       const idx = existingHeaders.indexOf(name);
@@ -1465,47 +1441,42 @@ function saveIndividualItemConfigs(configs) {
           maxManagedColIndex = idx;
       }
   });
-
   const columnsToManage = maxManagedColIndex !== -1 ? maxManagedColIndex + 1 : 0;
-  Logger.log("saveIndividualItemConfigs: Number of columns to manage (A to J equivalent): " + columnsToManage); // DEBUG
+  Logger.log("saveIndividualItemConfigs: Number of columns to manage (A to J equivalent): " + columnsToManage);
 
-  // Clear only the columns that we manage, from row 2 to lastRow
-  // This clears current data where our managed headers are.
+  const totalColsInSheet = configSheet.getLastColumn();
+  let finalSheetWidth = Math.max(totalColsInSheet, columnsToManage); 
+  Logger.log("saveIndividualItemConfigs: Initial finalSheetWidth: " + finalSheetWidth);
+
   if (configSheet.getLastRow() > 1 && columnsToManage > 0) {
-    configSheet.getRange(2, 1, configSheet.getLastRow() - 1, columnsToManage).clearContent();
-    Logger.log(`saveIndividualItemConfigs: Cleared content from row 2 to ${configSheet.getLastRow()} in columns 1 to ${columnsToManage}.`); // DEBUG
+    const clearRangeLastColumn = Math.min(finalSheetWidth, configSheet.getLastColumn()); 
+    configSheet.getRange(2, 1, configSheet.getLastRow() - 1, clearRangeLastColumn).clearContent();
+    Logger.log(`saveIndividualItemConfigs: Cleared content from row 2 to ${configSheet.getLastRow()} in columns 1 to ${clearRangeLastColumn}.`);
   }
 
   const dataToSave = [];
   if (Array.isArray(configs) && configs.length > 0) {
-    // Determine the full width of the sheet needed for writing,
-    // including columns beyond what we manage (e.g., Default Order Emails)
-    const totalColsInSheet = configSheet.getLastColumn();
-    const finalSheetWidth = Math.max(totalColsInSheet, columnsToManage); // Use the wider of current sheet or managed cols
-    Logger.log("saveIndividualItemConfigs: Final sheet width for writing: " + finalSheetWidth); // DEBUG
+    finalSheetWidth = Math.max(totalColsInSheet, columnsToManage); 
+    Logger.log("saveIndividualItemConfigs: Final sheet width for writing: " + finalSheetWidth);
 
-    // Create a map to store output column indices, derived from actual headers
     const outputColumnIndices = {};
     existingHeaders.forEach((header, index) => {
         outputColumnIndices[header] = index;
     });
-
-    configs.forEach((config, configIndex) => { // Added configIndex for debugging
-      const rowData = new Array(finalSheetWidth).fill(''); // Initialize with empty strings for full final width
+    configs.forEach((config, configIndex) => {
+      const rowData = new Array(finalSheetWidth).fill(''); 
       
-      // If there's an existing row for this item (from previous state), copy its full content first
-      // This is crucial to preserve columns that aren't managed by `managedHeaderNames` (like "Default Order Emails")
-      const existingRowData = existingRows.find(r => r[outputColumnIndices["Item ID"]] === config.itemId);
+      const existingRowData = existingRows.find(r => existingItemIdCol !== -1 && r[existingItemIdCol] && r[existingItemIdCol].toString().trim() === config.itemId);
+
       if (existingRowData) {
+          Logger.log(`Debug: Found existing row for ${config.itemId}. Copying existing data.`);
           for (let j = 0; j < existingRowData.length; j++) {
-              if (j < finalSheetWidth) { // Only copy if target column exists in our new rowData
+              if (j < finalSheetWidth) { 
                   rowData[j] = existingRowData[j];
               }
           }
       }
 
-      // Assign values based on their correct column index, using values from config object
-      // and preserved values for Last Urgent Sent, On Order Flag, and Notes if not set in config
       if (outputColumnIndices["Item ID"] !== -1) rowData[outputColumnIndices["Item ID"]] = config.itemId;
       if (outputColumnIndices["Urgent Threshold"] !== -1) rowData[outputColumnIndices["Urgent Threshold"]] = config.urgentThreshold;
       if (outputColumnIndices["Urgent Comparison"] !== -1) rowData[outputColumnIndices["Urgent Comparison"]] = config.urgentComparison;
@@ -1513,73 +1484,177 @@ function saveIndividualItemConfigs(configs) {
       if (outputColumnIndices["Daily Comparison"] !== -1) rowData[outputColumnIndices["Daily Comparison"]] = config.dailyComparison;
       if (outputColumnIndices["Notify Type"] !== -1) rowData[outputColumnIndices["Notify Type"]] = config.notifyType;
       if (outputColumnIndices["Emails"] !== -1) rowData[outputColumnIndices["Emails"]] = config.emails;
-      
-      // Use preserved values for flags/dates/notes if they were not explicitly passed from UI (e.g., config object doesn't have them)
       if (outputColumnIndices["On Order Flag"] !== -1) rowData[outputColumnIndices["On Order Flag"]] = config.onOrderFlag || onOrderFlagMap.get(config.itemId) || '';
       if (outputColumnIndices["Last Urgent Sent"] !== -1) rowData[outputColumnIndices["Last Urgent Sent"]] = config.lastUrgentSent || lastUrgentSentMap.get(config.itemId) || '';
       if (outputColumnIndices["Notes"] !== -1) rowData[outputColumnIndices["Notes"]] = config.notes || notesMap.get(config.itemId) || '';
 
-
       dataToSave.push(rowData);
-      Logger.log(`saveIndividualItemConfigs: Preparing row ${configIndex + 1}: ${JSON.stringify(rowData.slice(0, columnsToManage))}`); // DEBUG: Log only managed columns
+      Logger.log(`saveIndividualItemConfigs: Preparing row ${configIndex + 1}: ${JSON.stringify(rowData.slice(0, columnsToManage))}`);
     });
   }
+  Logger.log(`saveIndividualItemConfigs: dataToSave array length before writing: ${dataToSave.length}`);
+  Logger.log(`saveIndividualItemConfigs: Full dataToSave array: ${JSON.stringify(dataToSave)}`);
 
   if (dataToSave.length > 0) {
-    // Write the new data starting from row 2.
-    // Use the determined finalSheetWidth to ensure consistent column writing.
     configSheet.getRange(2, 1, dataToSave.length, finalSheetWidth).setValues(dataToSave);
+  } else {
+    if (configSheet.getLastRow() > 1) {
+       const clearRangeLastColumn = Math.min(finalSheetWidth, configSheet.getLastColumn());
+       configSheet.getRange(2, 1, configSheet.getLastRow() - 1, clearRangeLastColumn).clearContent();
+       Logger.log("saveIndividualItemConfigs: No items to save, cleared existing managed content.");
+    }
   }
   
   SpreadsheetApp.flush();
-  Logger.log(`saveIndividualItemConfigs: Function finished. Saved ${dataToSave.length} item configurations.`); // DEBUG
+  Logger.log(`saveIndividualItemConfigs: Function finished. Saved ${dataToSave.length} item configurations.`);
 }
 
 /**
- * Consolidated function to run all stock-related checks and email queuing.
- * This function will be called by onEdit and onFormSubmit triggers.
- * It calls functions from other .gs files (urgentEmails.gs, emails.gs).
- * Ensure these files are part of the same Apps Script project.
+ * Main function to perform all stock-related checks and maintenance.
+ * This includes adding new items, checking for missing/obsolete items,
+ * and clearing 'Last Urgent Sent' flags for recovered stock.
+ * This function does NOT send urgent or daily emails directly; it prepares data for them.
+ * This function can be called manually or by onFormSubmit/onEdit triggers.
  */
 function runStockChecks() {
-  Logger.log("Running consolidated stock checks...");
-  try {
-    const stockStatus = getStockStatus();
-    Logger.log("Stock Status Results: " + JSON.stringify(stockStatus));
+  Logger.log("Running comprehensive stock checks (maintenance and status update)...");
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const stockSheet = ss.getSheetByName("Stock Tracker");
+  const formSheet = ss.getSheetByName("Materials Log");
+  const productInfoSheet = ss.getSheetByName("Product info");
 
-    // Check if queueUrgentStockAlerts function exists before calling
+  if (!stockSheet || !formSheet || !productInfoSheet) {
+    Logger.log("❌ Missing required sheet(s) for runStockChecks (Stock Tracker, Materials Log, or Product info).");
+    return;
+  }
+
+  try {
+    // --- Part 1: Add new items from Materials Log to Stock Tracker ---
+    Logger.log("--- Part 1: Adding new items from Materials Log to Stock Tracker ---");
+    const stockDataBeforeAdd = stockSheet.getDataRange().getValues();
+    const stockItemIdsBeforeAdd = stockDataBeforeAdd.slice(1).map(row => row[0] ? row[0].toString().trim() : ''); 
+    Logger.log("Debug (Add New): Stock Tracker IDs before add: " + JSON.stringify(stockItemIdsBeforeAdd));
+
+    const formData = formSheet.getDataRange().getValues();
+    const formItemIds = formData.slice(1).map(row => row[1] ? row[1].toString().trim() : '').filter(id => id);
+    const uniqueFormItemIds = [...new Set(formItemIds)];
+    Logger.log("Debug (Add New): Unique Form Item IDs from Materials Log: " + JSON.stringify(uniqueFormItemIds));
+
+    let addedCount = 0;
+    uniqueFormItemIds.forEach(id => {
+      Logger.log(`Debug (Add New): Checking if Stock Tracker includes '${id}'... Result: ${stockItemIdsBeforeAdd.includes(id)}`);
+      if (!stockItemIdsBeforeAdd.includes(id)) {
+        stockSheet.appendRow([id]);
+        addedCount++;
+        Logger.log(`✅ Added new item to Stock Tracker: ${id}`);
+      }
+    });
+
+    if (addedCount > 0) {
+      const lastRow = stockSheet.getLastRow();
+      const itemId = stockSheet.getRange(lastRow, 1).getValue();
+      if (itemId) {
+        // Assuming generateLabelViaSlides can use the row or you might need a different way to trigger for newly added
+        // For simplicity, keeping the existing call structure.
+        generateLabelViaSlides(lastRow, true); 
+      }
+      Logger.log(`Total new items added to Stock Tracker: ${addedCount}`);
+    } else {
+      Logger.log("ℹ️ No new items to add to Stock Tracker.");
+    }
+
+    // --- Part 2: Check for missing/obsolete items in Stock Tracker ---
+    Logger.log("--- Part 2: Checking for missing items in Stock Tracker ---");
+
+    const currentStockData = stockSheet.getDataRange().getValues();
+    const currentStockItemIds = currentStockData.slice(1).map(row => row[0] ? row[0].toString().trim() : '');
+    Logger.log("Debug (Check Missing): Current Stock Tracker IDs: " + JSON.stringify(currentStockItemIds));
+
+    const productInfoData = productInfoSheet.getDataRange().getValues();
+    const productInfoItemIds = productInfoData.slice(1).map(row => row[0] ? row[0].toString().trim() : '');
+    Logger.log("Debug (Check Missing): Product Info (Master) IDs: " + JSON.stringify(productInfoItemIds));
+
+    let missingCount = 0;
+    if (currentStockItemIds.length > 0) {
+      currentStockItemIds.forEach((stockId, index) => {
+        if (!productInfoItemIds.includes(stockId)) {
+          Logger.log(`⚠️ Missing/Obsolete item found in Stock Tracker (row ${index + 2}): '${stockId}'. This item is not in Product Info.`);
+          missingCount++;
+          // Optional: Add logic here to mark/handle obsolete items, e.g.:
+          // stockSheet.getRange(index + 2, someObsoleteFlagCol + 1).setValue("OBSOLETE");
+        }
+      });
+    }
+
+    if (missingCount > 0) {
+      Logger.log(`Found ${missingCount} item(s) in Stock Tracker that are not in Product info. Review logs for details.`);
+    } else {
+      Logger.log("✅ No missing/obsolete items found in Stock Tracker relative to Product info.");
+    }
+
+    // --- Part 3: Update stock status and clear Last Urgent Sent flag ---
+    Logger.log("--- Part 3: Updating stock status and clearing flags ---");
+    // This section solely refreshes internal stock status calculations and flags.
+    // It does NOT send emails directly.
+    const stockStatus = getStockStatus(); // This retrieves stock levels and thresholds for internal use
+    Logger.log("Stock Status Results (after reconciliation): " + JSON.stringify(stockStatus));
+    clearLastUrgentSentForRecoveredStock(); // Clears flag for items no longer urgent
+
+  } catch (e) {
+    Logger.log("Error during runStockChecks: " + e.message + ". Stack: " + e.stack);
+  }
+  Logger.log("runStockChecks: Function finished.");
+}
+
+/**
+ * Dedicated function to trigger the urgent stock alert email process.
+ * This function should be called when urgent alerts are explicitly needed (e.g., manually, or via a simple trigger).
+ */
+function triggerUrgentStockEmail() {
+  Logger.log("Triggering urgent stock email process.");
+  try {
     if (typeof queueUrgentStockAlerts === 'function') {
       queueUrgentStockAlerts();
       Logger.log("Urgent stock alerts queued.");
     } else {
       Logger.log("Warning: queueUrgentStockAlerts function not found. Urgent emails will not be sent.");
     }
+  } catch (e) {
+    Logger.log("Error during triggerUrgentStockEmail: " + e.message + ". Stack: " + e.stack);
+  }
+  Logger.log("triggerUrgentStockEmail: Function finished.");
+}
 
-    // Check if sendDailyStockEmail function exists before calling
+
+/**
+ * Dedicated function to trigger the daily stock summary email.
+ * This function should be linked to a time-driven trigger.
+ */
+function triggerDailyStockEmail() {
+  Logger.log("Triggering daily stock summary email.");
+  try {
     if (typeof sendDailyStockEmail === 'function') {
       sendDailyStockEmail();
       Logger.log("Daily stock summary emails processed.");
     } else {
       Logger.log("Warning: sendDailyStockEmail function not found. Daily emails will not be sent.");
     }
-
-    // Clear Last Urgent Sent for items that are now above threshold
-    clearLastUrgentSentForRecoveredStock();
-
   } catch (e) {
-    Logger.log("Error during runStockChecks: " + e.message);
-    // Optionally, send an error email to an admin here
+    Logger.log("Error during triggerDailyStockEmail: " + e.message + ". Stack: " + e.stack);
   }
+  Logger.log("triggerDailyStockEmail: Function finished.");
 }
+
 
 /**
  * Clears the 'Last Urgent Sent' date for items whose current stock quantity
- * is now above their urgent threshold. This allows new urgent alerts to be sent
+ * is now above their urgent threshold.
+ * This allows new urgent alerts to be sent
  * if their stock drops again later.
  * Assumes the columns based on your provided screenshot.
  */
 function clearLastUrgentSentForRecoveredStock() {
-  Logger.log("clearLastUrgentSentForRecoveredStock: Function started."); // DEBUG
+  Logger.log("clearLastUrgentSentForRecoveredStock: Function started.");
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const configSheet = ss.getSheetByName("Config");
   const stockTrackerSheet = ss.getSheetByName("Stock Tracker");
@@ -1591,15 +1666,14 @@ function clearLastUrgentSentForRecoveredStock() {
   }
 
   const configData = configSheet.getDataRange().getValues();
-  const configHeaders = configData[0].map(h => h.toString().trim()); // Trim headers
+  const configHeaders = configData[0].map(h => h.toString().trim());
   const configRows = configData.slice(1);
-  Logger.log("clearLastUrgentSentForRecoveredStock: Trimmed configHeaders: " + JSON.stringify(configHeaders)); // DEBUG
+  Logger.log("clearLastUrgentSentForRecoveredStock: Trimmed configHeaders: " + JSON.stringify(configHeaders));
 
-  // Dynamically find column indices based on headers from your screenshot
   const configItemIdCol = configHeaders.indexOf("Item ID");
   const urgentThresholdCol = configHeaders.indexOf("Urgent Threshold");
   const urgentComparisonCol = configHeaders.indexOf("Urgent Comparison");
-  const lastUrgentSentCol = configHeaders.indexOf("Last Urgent Sent"); // Column I
+  const lastUrgentSentCol = configHeaders.indexOf("Last Urgent Sent");
 
   if ([configItemIdCol, urgentThresholdCol, urgentComparisonCol, lastUrgentSentCol].some(col => col === -1)) {
     Logger.log("Error: Missing one or more required headers in 'Config' sheet for clearing Last Urgent Sent dates. Check spelling/existence.");
@@ -1612,15 +1686,14 @@ function clearLastUrgentSentForRecoveredStock() {
     throw new Error("Missing required headers in 'Config' sheet. Please check the sheet headers.");
   }
 
-  // Get current quantities for all items from both stock sheets
-  const currentQuantitiesMap = new Map(); // itemId -> qty
+  const currentQuantitiesMap = new Map();
 
   const processSheetForQuantities = (sheet, qtyColumnIndex) => {
     const lastRow = sheet.getLastRow();
-    if (lastRow < 2) return; // No data to process
+    if (lastRow < 2) return;
     
     const values = sheet.getDataRange().getValues();
-    const headers = values[0].map(h => h.toString().trim()); // Trim headers
+    const headers = values[0].map(h => h.toString().trim());
     const itemIdCol = headers.indexOf("Item ID");
     const qtyCol = qtyColumnIndex;
 
@@ -1630,7 +1703,7 @@ function clearLastUrgentSentForRecoveredStock() {
     }
 
     values.slice(1).forEach(row => {
-      if (row.length <= Math.max(itemIdCol, qtyCol)) return; // Defensive check
+      if (row.length <= Math.max(itemIdCol, qtyCol)) return;
       const itemId = row[itemIdCol] ? row[itemIdCol].toString().trim() : '';
       const qty = row[qtyCol];
       if (itemId && typeof qty === 'number') {
@@ -1639,45 +1712,41 @@ function clearLastUrgentSentForRecoveredStock() {
     });
   };
 
-  processSheetForQuantities(stockTrackerSheet, 5); // Column F for Stock Tracker (index 5)
-  processSheetForQuantities(inksTrackerSheet, 2); // Column C for Inks Tracker (index 2)
-  Logger.log("clearLastUrgentSentForRecoveredStock: currentQuantitiesMap: " + JSON.stringify(Array.from(currentQuantitiesMap.entries()))); // DEBUG
+  processSheetForQuantities(stockTrackerSheet, 5);
+  processSheetForQuantities(inksTrackerSheet, 2);
+  Logger.log("clearLastUrgentSentForRecoveredStock: currentQuantitiesMap: " + JSON.stringify(Array.from(currentQuantitiesMap.entries())));
 
   let updatesMade = false;
   configRows.forEach((row, index) => {
-    if (row.length <= Math.max(configItemIdCol, urgentThresholdCol, urgentComparisonCol, lastUrgentSentCol)) return; // Defensive check
+    if (row.length <= Math.max(configItemIdCol, urgentThresholdCol, urgentComparisonCol, lastUrgentSentCol)) return;
     
     const itemId = row[configItemIdCol] ? row[configItemIdCol].toString().trim() : '';
     const urgentThreshold = !isNaN(parseInt(row[urgentThresholdCol])) ? parseInt(row[urgentThresholdCol]) : 0;
     const urgentComparison = row[urgentComparisonCol] ? row[urgentComparisonCol].toString().trim() : 'less_than_or_equal';
     const lastUrgentSent = row[lastUrgentSentCol];
 
-    if (itemId && lastUrgentSent) { // Only check if there's an item ID and a sent date
+    if (itemId && lastUrgentSent) {
       const currentQty = currentQuantitiesMap.get(itemId);
 
       if (currentQty !== undefined) {
         let isAboveThreshold = false;
-        // If the old comparison was 'less_than', then to be "above" it, new qty must be >= threshold
-        // If the old comparison was 'less_than_or_equal', then to be "above" it, new qty must be > threshold
         if (urgentComparison === 'less_than') {
-            isAboveThreshold = (currentQty >= urgentThreshold); 
+            isAboveThreshold = (currentQty >= urgentThreshold);
         } else { // default to less_than_or_equal
-            isAboveThreshold = (currentQty > urgentThreshold); 
+            isAboveThreshold = (currentQty > urgentThreshold);
         }
-        Logger.log(`clearLastUrgentSent: Item ${itemId}: Qty=${currentQty}, Thresh=${urgentThreshold}, Comp=${urgentComparison}, isAbove=${isAboveThreshold}, lastSent=${lastUrgentSent}`); // DEBUG
+        Logger.log(`clearLastUrgentSent: Item ${itemId}: Qty=${currentQty}, Thresh=${urgentThreshold}, Comp=${urgentComparison}, isAbove=${isAboveThreshold}, lastSent=${lastUrgentSent}`);
 
         if (isAboveThreshold) {
-            // Clear the Last Urgent Sent date
             configSheet.getRange(index + 2, lastUrgentSentCol + 1).clearContent();
             Logger.log(`Cleared Last Urgent Sent for ${itemId} (stock recovered to ${currentQty}).`);
             updatesMade = true;
         }
       } else {
-          Logger.log(`Warning: clearLastUrgentSent: Item ${itemId} from Config not found in stock sheets. Cannot check for recovery.`); // DEBUG
+          Logger.log(`Warning: clearLastUrgentSent: Item ${itemId} from Config not found in stock sheets. Cannot check for recovery.`);
       }
     }
   });
-
   if (updatesMade) {
     SpreadsheetApp.flush();
     Logger.log("Finished clearing 'Last Urgent Sent' dates for recovered stock.");
@@ -1693,29 +1762,19 @@ function clearLastUrgentSentForRecoveredStock() {
  * @param {Object} e The event object.
  */
 function onEdit(e) {
-  Logger.log("onEdit: Trigger fired."); // DEBUG
+  Logger.log("onEdit: Trigger fired.");
   if (!e || !e.range || !e.range.getSheet) {
     Logger.log("onEdit: Event object or range is invalid.");
     return;
   }
   const sheetName = e.range.getSheet().getName().trim();
-  // List of sheets where an edit should trigger a stock check
-  const allowedSheets = ["Stock Tracker", "Inks Tracker", "Materials Log", "Inks Log", "Config"]; 
-
+  const allowedSheets = ["Stock Tracker", "Inks Tracker", "Materials Log", "Inks Log", "Config"];
   if (allowedSheets.includes(sheetName)) {
     Logger.log(`onEdit: Edit detected in ${sheetName}. Running stock checks.`);
-    runStockChecks();
+    runStockChecks(); // This now performs all reconciliation and updates stock status.
   } else {
-    Logger.log(`onEdit: Edit in unrelated sheet: ${sheetName}. Skipping stock checks.`); // DEBUG
+    Logger.log(`onEdit: Edit in unrelated sheet: ${sheetName}. Skipping stock checks.`);
   }
 }
 
-/**
- * Simple trigger that runs when a form is submitted to the spreadsheet.
- * This function should be linked to an installable trigger for "On form submit".
- * @param {Object} e The event object.
- */
-function onFormSubmit(e) {
-  Logger.log("onFormSubmit: Trigger fired."); // DEBUG
-  runStockChecks();
-}
+// NOTE: onFormSubmit is now in onFormSubmit.gs and simply calls runStockChecks()

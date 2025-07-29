@@ -301,6 +301,7 @@
     <div style="flex-grow: 1; text-align: center;">
         </div>
     <div class="header-nav">
+      <button onclick="google.script.run.withSuccessHandler(function(url) { window.open(url, '_top'); }).getStickersFileUrl()">Print Stickers</button>
       <button onclick="google.script.run.withSuccessHandler(function(url) { window.open(url, '_top'); }).getOrderHistoryFileUrl()">Order History</button>
       <button onclick="google.script.run.withSuccessHandler(function(url) { window.open(url, '_top'); }).getConfigFileUrl()">Config</button>
       <button id="darkModeToggle" class="header-nav-button">Toggle Dark Mode</button>

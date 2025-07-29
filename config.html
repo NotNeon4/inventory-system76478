@@ -439,14 +439,11 @@
                 <th>Daily Comparison</th>
                 <th>Notify Type</th>
                 <th>Emails</th>
-                <th>On Order Flag</th>
-                <th>Last Urgent Sent</th>
-                <th>Notes</th>
                 <th>Actions</th>
             </tr>
         </thead>
         <tbody id="configTableBody">
-            <tr><td colspan="11" style="text-align: center; color: var(--text-medium);">Loading configurations...</td></tr>
+            <tr><td colspan="9" style="text-align: center; color: var(--text-medium);">Loading configurations...</td></tr>
         </tbody>
     </table>
     <div class="button-group">
@@ -535,7 +532,8 @@
     function loadItemConfigs() {
         console.log("Loading item configurations...");
         const tbody = document.getElementById('configTableBody');
-        tbody.innerHTML = '<tr><td colspan="11" style="text-align: center; color: var(--text-medium);">Loading configurations...</td></tr>';
+        // Updated colspan from 11 to 9
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--text-medium);">Loading configurations...</td></tr>'; 
         
         google.script.run
             .withSuccessHandler(function(configs) {
@@ -548,7 +546,8 @@
                 itemConfigs = []; 
                 showMessage('Error loading configurations: ' + error.message, 'error');
                 console.error('Error loading configurations:', error);
-                tbody.innerHTML = '<tr><td colspan="11" style="text-align: center; color: var(--error-red);">Failed to load configurations.</td></tr>';
+                // Updated colspan from 11 to 9
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--error-red);">Failed to load configurations.</td></tr>'; 
                 renderConfigTable(); // Attempt to render empty table or error message
             })
             .getIndividualItemConfigs(); // New Apps Script function
@@ -559,7 +558,8 @@
         tbody.innerHTML = ''; // Clear existing rows
 
         if (!itemConfigs || itemConfigs.length === 0) { // Defensive check
-            tbody.innerHTML = '<tr><td colspan="11" style="text-align: center; color: var(--text-medium);">No item configurations found. Add some above!</td></tr>';
+            // Updated colspan from 11 to 9
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--text-medium);">No item configurations found. Add some above!</td></tr>'; 
             return;
         }
 
@@ -573,7 +573,7 @@
             row.insertCell().setAttribute('data-label', 'Urgent Threshold');
             row.cells[1].innerHTML = `<input type="number" value="${config.urgentThreshold}" min="0" data-field="urgentThreshold" onchange="updateConfigItem(this, ${index})">`;
 
-            // NEW: Urgent Comparison Dropdown
+            // Urgent Comparison Dropdown
             row.insertCell().setAttribute('data-label', 'Urgent Comparison');
             row.cells[2].innerHTML = `
                 <select data-field="urgentComparison" onchange="updateConfigItem(this, ${index})">
@@ -584,7 +584,7 @@
             row.insertCell().setAttribute('data-label', 'Daily Threshold');
             row.cells[3].innerHTML = `<input type="number" value="${config.dailyThreshold}" min="0" data-field="dailyThreshold" onchange="updateConfigItem(this, ${index})">`;
 
-            // NEW: Daily Comparison Dropdown
+            // Daily Comparison Dropdown
             row.insertCell().setAttribute('data-label', 'Daily Comparison');
             row.cells[4].innerHTML = `
                 <select data-field="dailyComparison" onchange="updateConfigItem(this, ${index})">
@@ -605,20 +605,8 @@
             row.insertCell().setAttribute('data-label', 'Emails');
             row.cells[6].innerHTML = `<input type="text" value="${config.emails || ''}" data-field="emails" onchange="updateConfigItem(this, ${index})">`;
 
-            // New columns in table display for On Order Flag, Last Urgent Sent, and Notes
-            row.insertCell().setAttribute('data-label', 'On Order Flag');
-            // This is primarily for display; the flag is managed by backend operations, not directly edited here.
-            row.cells[7].textContent = config.onOrderFlag || ''; 
-
-            row.insertCell().setAttribute('data-label', 'Last Urgent Sent');
-            // Format date for display. Handle case where it might be a date object from server or string from preservation
-            const lastSentDate = (config.lastUrgentSent instanceof Date) ? config.lastUrgentSent.toLocaleString() : (config.lastUrgentSent ? new Date(config.lastUrgentSent).toLocaleString() : '');
-            row.cells[8].textContent = lastSentDate; 
-
-            row.insertCell().setAttribute('data-label', 'Notes');
-            row.cells[9].innerHTML = `<input type="text" value="${config.notes || ''}" data-field="notes" onchange="updateConfigItem(this, ${index})">`;
-
-
+            // Removed 'On Order Flag' and 'Last Urgent Sent' from UI rendering
+            // Backend `getIndividualItemConfigs` and `saveIndividualItemConfigs` will still handle them for other functions.
             const actionsCell = row.insertCell();
             actionsCell.setAttribute('data-label', 'Actions');
             actionsCell.classList.add('action-buttons');
