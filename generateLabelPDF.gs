@@ -36,6 +36,10 @@ const INDIVIDUAL_LABEL_TEMPLATE_ID = '1OxCwLQhFWbZc5UzcSKSC1YYfe0NfAVsyBBX3bl2pJ
 // Logo URL (from your existing label generator)
 const LOGO_IMAGE_URL = "https://drive.google.com/uc?export=view&id=1n8_F8SSx5HIGJs56o-kWo6xHcb2m5NWn";
 
+// NEW CONSTANT: ID of the blank A4-sized Google Slides template
+// YOU MUST REPLACE THIS WITH THE ID OF THE A4 TEMPLATE YOU CREATED IN STEP 1
+const A4_BLANK_SLIDES_TEMPLATE_ID = '1tbT1G2Q63NDOU1yTVsOAu8m7zGleeVhYzjUNWwNumFM'; // <--- IMPORTANT: REPLACE THIS!
+
 // --- End Constants ---
 
 
@@ -219,244 +223,53 @@ function generateLabelFromSelection_Slides() {
   }
   generateLabelViaSlides(row);
 }
-// ... (existing constants and helper functions remain the same) ...
 
-/**
- * Generates a printable PDF with multiple stickers (2x6 layout for 12-up on A4)
- * including crop marks, and saves it to a Google Drive folder for Fiery integration.
- *
- * @param {Array<Object>} itemsToPrint - An array of objects, each with { itemId: string, itemName: string, qty: number }.
- * @returns {Object} An object with success status and the generated file name/URL.
- */
 function generateStickerPrintJob(itemsToPrint) {
   Logger.log("generateStickerPrintJob: Function started.");
-  if (!itemsToPrint || itemsToPrint.length === 0) {
+  if (!itemsToPrint || itemsToPrint.length === 0) { // Corrected: itemsToPrint instead of itemsToToPrint
     Logger.log("Error: No items provided for sticker print job.");
     return { success: false, message: "No items to print." };
   }
 
-  // Get the Google Drive folder for Fiery integration
-  let fieryPrintFolder;
+  // Get the Google Drive folder for Fiery integration (or where you want to save the CSV)
+  let outputFolder;
   try {
-    fieryPrintFolder = DriveApp.getFolderById(FIERY_PRINT_QUEUE_FOLDER_ID);
+    // Using FIERY_PRINT_QUEUE_FOLDER_ID as the destination folder, as per previous context.
+    outputFolder = DriveApp.getFolderById(FIERY_PRINT_QUEUE_FOLDER_ID);
   } catch (e) {
-    Logger.log(`Error: Fiery Print Queue Folder ID '${FIERY_PRINT_QUEUE_FOLDER_ID}' not found or inaccessible. Error: ${e.message}`);
-    return { success: false, message: `Fiery print folder not found or inaccessible. Please check the ID in the script config.` };
+    Logger.log(`Error: Output Folder ID '${FIERY_PRINT_QUEUE_FOLDER_ID}' not found or inaccessible. Error: ${e.message}`);
+    return { success: false, message: `Output folder not found or inaccessible. Please check the ID in the script config.` };
   }
 
-  let tempPresentationId = null; // Will store the ID of the new presentation
-  let tempDriveFileObject = null;     // This will hold the DriveApp.File object for cleanup
-  let fileBlob = null;
-  let fileName = '';
+  let fileContent = '';
+  let fileName = `Sticker_Print_Job_${new Date().toISOString().replace(/[:.]/g, '-')}.csv`;
+
+  // Build CSV header - matching the provided example file
+  fileContent += `"Item ID","Item Name","Length","Width","Quantity"\n`;
+
+  // Build CSV rows from the itemsToPrint array
+  itemsToPrint.forEach(item => {
+    // Get product details for Length and Width (these are still needed from Product info sheet)
+    const productDetails = getProductItemDetails(item.itemId); // Assuming getProductItemDetails is accessible
+    const length = productDetails ? String(productDetails.length).replace(/"/g, '""') : '';
+    const width = productDetails ? String(productDetails.width).replace(/"/g, '""') : '';
+
+    // Ensure values are properly quoted and escaped for CSV
+    const itemId = item.itemId ? `"${String(item.itemId).replace(/"/g, '""')}"` : '""';
+    const itemName = item.itemName ? `"${String(item.itemName).replace(/"/g, '""')}"` : '""';
+    const qty = (item.qty !== undefined && item.qty !== null) ? String(item.qty) : ''; // Convert to string
+    
+    // Add Length and Width to the row, matching the order in the header
+    fileContent += `${itemId},${itemName},"${length}","${width}",${qty}\n`; 
+  });
 
   try {
-    // --- ADVANCED SERVICE: Create Presentation ---
-    // Use the Slides API directly to create the presentation
-    Logger.log("Attempting to create presentation via Slides.Presentations.create");
-    const newPresentationBody = {
-      title: `Sticker Print Job - ${new Date().toLocaleString()}`
-    };
-    const newPresentation = Slides.Presentations.create(newPresentationBody);
-    tempPresentationId = newPresentation.presentationId;
-    Logger.log("Debug: Presentation ID created via Advanced Slides API: " + tempPresentationId);
+    const csvFile = outputFolder.createFile(fileName, fileContent, MimeType.CSV);
+    Logger.log(`✅ CSV file saved to Drive: ${csvFile.getUrl()}`);
 
-    if (!tempPresentationId) {
-      throw new Error("Failed to create presentation via Advanced Slides API. No ID returned.");
-    }
-
-    // Get the DriveApp.File object for this presentation for later PDF conversion and trashing
-    tempDriveFileObject = DriveApp.getFileById(tempPresentationId);
-    Logger.log("Debug: Drive File object for presentation: " + tempDriveFileObject);
-    
-    // --- ADVANCED SERVICE: Set Page Size (using updatePresentationProperties) ---
-    // This request sets the page size for the whole presentation.
-    // The previous error "Unknown name "updatePresentationProperties"" is highly unusual if field name is correct.
-    // Let's re-confirm the exact structure based on API docs.
-    const setPageSizeRequest = {
-      "updatePresentationProperties": { // This should be the correct field name (camelCase)
-        "presentationProperties": {
-          "pageSize": {
-            "width": { "magnitude": A4_WIDTH_PTS, "unit": "PT" },
-            "height": { "magnitude": A4_HEIGHT_PTS, "unit": "PT" }
-          }
-        },
-        "fields": "pageSize"
-      }
-    };
-
-    Logger.log("Debug: setPageSizeRequest payload: " + JSON.stringify(setPageSizeRequest));
-    Slides.Presentations.batchUpdate({ requests: [setPageSizeRequest] }, tempPresentationId);
-    Logger.log(`Presentation page size updated to A4: ${A4_WIDTH_PTS}x${A4_HEIGHT_PTS} pts`);
-
-    // --- Now, open the presentation using SlidesApp for content manipulation ---
-    // We create it with the API, set size with API, then open it with SlidesApp for easier scripting
-    const slidePresentationObject = SlidesApp.openById(tempPresentationId);
-    
-    // Clear the default first slide's content.
-    // The Slides API creates one default slide. We will clear its content here.
-    if (slidePresentationObject.getSlides().length > 0) {
-      const defaultSlide = slidePresentationObject.getSlides()[0];
-      defaultSlide.getPageElements().forEach(el => el.remove()); // Remove all elements
-      Logger.log("Default slide content cleared.");
-    }
-
-    let currentPage = null;
-    let stickerCountOnCurrentPage = 0;
-    let totalPages = 0;
-
-    itemsToPrint.forEach(item => {
-      const itemId = item.itemId;
-      const qtyToPrint = item.qty;
-      
-      const productDetails = getProductItemDetails(itemId); // Fetch detailed info
-      const itemName = productDetails ? productDetails.itemName : (item.itemName || 'Unknown Item');
-      const itemLength = productDetails ? productDetails.length : 'N/A';
-      const itemWidth = productDetails ? productDetails.width : 'N/A';
-
-      Logger.log(`Processing item: ${itemId}, Quantity: ${qtyToPrint}, Details: ${JSON.stringify(productDetails)}`);
-
-      for (let i = 0; i < qtyToPrint; i++) {
-        // Check if a new page is needed
-        if (stickerCountOnCurrentPage === 0 || stickerCountOnCurrentPage >= TOTAL_STICKERS_PER_PAGE) {
-          currentPage = slidePresentationObject.appendSlide(SlidesApp.PredefinedLayout.BLANK);
-          stickerCountOnCurrentPage = 0;
-          totalPages++;
-          Logger.log(`Starting new page ${totalPages}`);
-
-          // Add A4 crop marks to the new page (for the entire A4 sheet)
-          addA4PageCropMarks(currentPage);
-        }
-
-        const col = stickerCountOnCurrentPage % STICKER_COLS;
-        const row = Math.floor(stickerCountOnCurrentPage / STICKER_COLS);
-
-        const xPos = LEFT_MARGIN_PTS + (col * (INDIVIDUAL_STICKER_WIDTH_PTS + GUTTER_HORIZONTAL_PTS));
-        const yPos = TOP_MARGIN_PTS + (row * (INDIVIDUAL_STICKER_HEIGHT_PTS + GUTTER_VERTICAL_PTS));
-
-        Logger.log(`Placing sticker ${i + 1}/${qtyToPrint} for ${itemId} at (x: ${xPos}, y: ${yPos}) on page ${totalPages}`);
-
-        // --- Render individual sticker content (QR, Text, Logo) ---
-        const formURL = `https://docs.google.com/forms/d/e/1FAIpQLScNhuWKlDj3Scb3I0L0otsYljcATJxKRZvr_dF7MJenvVWjOg/viewform?usp=pp_url&entry.118779491=${encodeURIComponent(itemId)}`;
-        const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(formURL)}`;
-        
-        const qrSize = INDIVIDUAL_STICKER_WIDTH_PTS * 0.4;
-        currentPage.insertImage(qrImageUrl)
-          .setLeft(xPos + (INDIVIDUAL_STICKER_WIDTH_PTS * 0.05))
-          .setTop(yPos + (INDIVIDUAL_STICKER_HEIGHT_PTS * 0.05))
-          .setWidth(qrSize)
-          .setHeight(qrSize);
-
-        const logoWidth = INDIVIDUAL_STICKER_WIDTH_PTS * 0.2;
-        const logoHeight = INDIVIDUAL_STICKER_HEIGHT_PTS * 0.2;
-        currentPage.insertImage(LOGO_IMAGE_URL)
-          .setLeft(xPos + INDIVIDUAL_STICKER_WIDTH_PTS - logoWidth - (INDIVIDUAL_STICKER_WIDTH_PTS * 0.05))
-          .setTop(yPos + (INDIVIDUAL_STICKER_HEIGHT_PTS * 0.05))
-          .setWidth(logoWidth)
-          .setHeight(logoHeight);
-
-        currentPage.insertTextBox(itemName, 
-          xPos + (INDIVIDUAL_STICKER_WIDTH_PTS * 0.05), 
-          yPos + (qrSize) + (INDIVIDUAL_STICKER_HEIGHT_PTS * 0.08),
-          INDIVIDUAL_STICKER_WIDTH_PTS * 0.9,
-          20
-        )
-        .getText().getTextStyle().setFontSize(10).setBold(true);
-
-        currentPage.insertTextBox(`Item ID: ${itemId}`, 
-          xPos + (INDIVIDUAL_STICKER_WIDTH_PTS * 0.05),
-          yPos + (qrSize) + (INDIVIDUAL_STICKER_HEIGHT_PTS * 0.08) + 20,
-          INDIVIDUAL_STICKER_WIDTH_PTS * 0.9,
-          20
-        )
-        .getText().getTextStyle().setFontSize(9);
-        
-        currentPage.insertTextBox(`Length: ${itemLength}`, 
-          xPos + (INDIVIDUAL_STICKER_WIDTH_PTS * 0.05),
-          yPos + (qrSize) + (INDIVIDUAL_STICKER_HEIGHT_PTS * 0.08) + 40,
-          INDIVIDUAL_STICKER_WIDTH_PTS * 0.9,
-          20
-        )
-        .getText().getTextStyle().setFontSize(9);
-
-        currentPage.insertTextBox(`Width: ${itemWidth}`, 
-          xPos + (INDIVIDUAL_STICKER_WIDTH_PTS * 0.05),
-          yPos + (qrSize) + (INDIVIDUAL_STICKER_HEIGHT_PTS * 0.08) + 60,
-          INDIVIDUAL_STICKER_WIDTH_PTS * 0.9,
-          20
-        )
-        .getText().getTextStyle().setFontSize(9);
-
-        stickerCountOnCurrentPage++;
-      }
-    });
-
-    slidePresentationObject.saveAndClose();
-
-    // Generate PDF name
-    fileName = `Sticker_Print_Job_${new Date().toISOString().replace(/[:.]/g, '-')}.pdf`;
-    
-    // Convert the presentation to PDF Blob using the Drive File object
-    fileBlob = tempDriveFileObject.getAs(MimeType.PDF);
-    
-    // Save the PDF to the designated folder
-    const pdfFile = fieryPrintFolder.createFile(fileBlob).setName(fileName);
-    Logger.log(`Generated PDF saved to Drive: ${pdfFile.getUrl()}`);
-
-    return { success: true, fileName: fileName, fileUrl: pdfFile.getUrl() };
-
+    return { success: true, message: `CSV file '${fileName}' saved to Google Drive.`, fileUrl: csvFile.getUrl() };
   } catch (e) {
-    Logger.log(`❌ Error generating sticker print job: ${e.message}. Stack: ${e.stack}`);
-    return { success: false, message: e.message };
-  } finally {
-    // Clean up the temporary Google Slides presentation using the Drive File object
-    if (tempDriveFileObject) {
-      try {
-        tempDriveFileObject.setTrashed(true);
-        Logger.log("Temporary presentation trashed.");
-      } catch (e) {
-        Logger.log("Error trashing temporary presentation: " + e.message);
-      }
-    }
+    Logger.log(`❌ Error saving CSV file to Drive: ${e.message}. Stack: ${e.stack}`);
+    return { success: false, message: `Failed to save CSV file: ${e.message}` };
   }
-}
-/**
- * Adds crop marks to the corners of the A4 slide to indicate the full page dimensions.
- * These are for the overall A4 sheet, not individual stickers.
- * @param {GoogleAppsScript.Slides.Slide} slide The slide to add crop marks to.
- */
-function addA4PageCropMarks(slide) {
-  const width = slide.getPageWidth();
-  const height = slide.getPageHeight();
-
-  // Top-left corner
-  slide.insertLine(CROP_MARK_OFFSET_PTS, CROP_MARK_OFFSET_PTS, CROP_MARK_LENGTH_PTS + CROP_MARK_OFFSET_PTS, CROP_MARK_OFFSET_PTS); // Horizontal
-  slide.insertLine(CROP_MARK_OFFSET_PTS, CROP_MARK_OFFSET_PTS, CROP_MARK_OFFSET_PTS, CROP_MARK_LENGTH_PTS + CROP_MARK_OFFSET_PTS); // Vertical
-
-  // Top-right corner
-  slide.insertLine(width - CROP_MARK_OFFSET_PTS, CROP_MARK_OFFSET_PTS, width - CROP_MARK_LENGTH_PTS - CROP_MARK_OFFSET_PTS, CROP_MARK_OFFSET_PTS); // Horizontal
-  slide.insertLine(width - CROP_MARK_OFFSET_PTS, CROP_MARK_OFFSET_PTS, width - CROP_MARK_OFFSET_PTS, CROP_MARK_LENGTH_PTS + CROP_MARK_OFFSET_PTS); // Vertical
-
-  // Bottom-left corner
-  slide.insertLine(CROP_MARK_OFFSET_PTS, height - CROP_MARK_OFFSET_PTS, CROP_MARK_LENGTH_PTS + CROP_MARK_OFFSET_PTS, height - CROP_MARK_OFFSET_PTS); // Horizontal
-  slide.insertLine(CROP_MARK_OFFSET_PTS, height - CROP_MARK_OFFSET_PTS, CROP_MARK_OFFSET_PTS, height - CROP_MARK_LENGTH_PTS - CROP_MARK_OFFSET_PTS); // Vertical
-
-  // Bottom-right corner
-  slide.insertLine(width - CROP_MARK_OFFSET_PTS, height - CROP_MARK_OFFSET_PTS, width - CROP_MARK_LENGTH_PTS - CROP_MARK_OFFSET_PTS, height - CROP_MARK_OFFSET_PTS); // Horizontal
-  slide.insertLine(width - CROP_MARK_OFFSET_PTS, height - CROP_MARK_OFFSET_PTS, width - CROP_MARK_OFFSET_PTS, height - CROP_MARK_LENGTH_PTS - CROP_MARK_OFFSET_PTS); // Vertical
-
-  Logger.log("Added A4 page crop marks.");
-
-  // Add internal cut marks (between stickers)
-  // Horizontal cut lines
-  for (let r = 1; r < STICKER_ROWS; r++) {
-    const yCutPos = TOP_MARGIN_PTS + (r * INDIVIDUAL_STICKER_HEIGHT_PTS) + ((r - 1) * GUTTER_VERTICAL_PTS) + (GUTTER_VERTICAL_PTS / 2);
-    slide.insertLine(LEFT_MARGIN_PTS, yCutPos, A4_WIDTH_PTS - LEFT_MARGIN_PTS, yCutPos);
-  }
-
-  // Vertical cut lines
-  for (let c = 1; c < STICKER_COLS; c++) {
-    const xCutPos = LEFT_MARGIN_PTS + (c * INDIVIDUAL_STICKER_WIDTH_PTS) + ((c - 1) * GUTTER_HORIZONTAL_PTS) + (GUTTER_HORIZONTAL_PTS / 2);
-    slide.insertLine(xCutPos, TOP_MARGIN_PTS, xCutPos, A4_HEIGHT_PTS - TOP_MARGIN_PTS);
-  }
-  Logger.log("Added internal cut marks between stickers.");
 }
