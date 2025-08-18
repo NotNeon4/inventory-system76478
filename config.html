@@ -3,11 +3,86 @@
 <head>
   <base target="_top">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Jigsaw Inventory Config</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
+        @media (max-width: 768px) {
+      .header {
+        flex-direction: column;
+        text-align: center;
+        gap: 10px;
+      }
+      .container {
+        margin: 15px;
+        padding: 15px;
+      }
+      .button-group {
+        flex-direction: column;
+      }
+      .button-group button {
+        width: 100%;
+      }
+
+      /* --- ADD OR MODIFY THESE LINES FOR BETTER MOBILE TEXT READABILITY --- */
+
+      body {
+        font-size: 16px; /* A good base size for mobile, adjusts all relative units */
+        line-height: 1.6; /* Slightly more spacing for readability */
+      }
+
+      .section-title {
+        font-size: 22px; /* Slightly smaller than desktop but still prominent */
+      }
+
+      h3 { /* For "Items in current order:", "Emails for this order:", etc. */
+        font-size: 17px;
+      }
+
+      label,
+      input[type="text"],
+      input[type="number"],
+      input[type="email"],
+      select,
+      textarea {
+        font-size: 16px; /* Ensure form elements have a readable size */
+      }
+
+      /* Adjust list item text sizes, if needed (example for .item-list and .email-list-display) */
+      .item-list li,
+      .email-list-display li {
+        font-size: 15px; /* Adjust as needed */
+      }
+
+      .item-list button,
+      .email-list-display button {
+        font-size: 13px; /* Keep buttons readable */
+        padding: 6px 12px;
+      }
+
+      /* Adjust table font sizes if they use specific small units */
+      .config-table th,
+      .config-table td {
+          font-size: 14px; /* Ensure table content is legible */
+          padding: 10px;
+      }
+
+      /* Adjust modal content font sizes */
+      .modal .item-details-display span,
+      .modal .item-list-edit .item-notes-input {
+          font-size: 0.95em; /* Make text inside modal lists slightly larger */
+      }
+      .modal .item-list-edit .item-controls label,
+      .modal .item-list-edit .item-controls input[type="number"] {
+          font-size: 15px; /* Ensure quantity controls are clear */
+      }
+
+
+      /* --- END MOBILE TEXT READABILITY MODIFICATIONS --- */
+    }
     :root {
       /* Light Mode Colors */
       --primary-blue: #007AFF;
