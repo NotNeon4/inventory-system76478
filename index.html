@@ -388,8 +388,10 @@
 
     <div class="form-group">
       <label for="itemId">Item ID / Name:</label>
-      <input type="text" id="itemId" list="itemIDs" placeholder="Start typing item ID or name..." autocomplete="off">
-      <datalist id="itemIDs"></datalist>
+      <input type="text" id="itemId" list="itemIDs" placeholder="Enter any item ID or name..." autocomplete="off">
+      <datalist id="itemIDs">
+        <!-- Options will be populated by JavaScript -->
+      </datalist>
     </div>
 
     <div class="form-group">
@@ -498,23 +500,27 @@
           console.log('Available item details received:', availableItemDetails);
 
           const datalist = document.getElementById('itemIDs');
-          datalist.innerHTML = ''; // Clear existing options, if any
-          console.log('Datalist element selected:', datalist);
+          if (datalist) {
+            datalist.innerHTML = ''; // Clear existing options, if any
+            console.log('Datalist element selected:', datalist);
 
-          if (availableItemDetails && availableItemDetails.length > 0) {
-            availableItemDetails.forEach(item => {
-              const option = document.createElement('option');
-              // Use the original item.name for display, but ensure value handles special chars if needed
-              // For robustness, let's keep the value as the full string including special chars,
-              // and normalize when comparing in addItem.
-              option.value = `${item.id} - ${item.name}`; // The actual string with ®
-              datalist.appendChild(option);
-            });
-            console.log(`Successfully added ${availableItemDetails.length} options to datalist.`);
-            console.log('Current datalist HTML:', datalist.innerHTML);
+            if (availableItemDetails && availableItemDetails.length > 0) {
+              availableItemDetails.forEach(item => {
+                const option = document.createElement('option');
+                // Use the original item.name for display, but ensure value handles special chars if needed
+                // For robustness, let's keep the value as the full string including special chars,
+                // and normalize when comparing in addItem.
+                option.value = `${item.id} - ${item.name}`; // The actual string with ®
+                datalist.appendChild(option);
+              });
+              console.log(`Successfully added ${availableItemDetails.length} options to datalist.`);
+              console.log('Current datalist HTML:', datalist.innerHTML);
+            } else {
+              console.warn('No item details received or array is empty. Datalist will be empty.');
+              datalist.innerHTML = '<option value="No items found" disabled>No items found</option>';
+            }
           } else {
-            console.warn('No item details received or array is empty. Datalist will be empty.');
-            datalist.innerHTML = '<option value="No items found" disabled>No items found</option>';
+            console.error('Datalist element with id "itemIDs" not found!');
           }
         })
         .withFailureHandler(function(error) {
@@ -543,16 +549,16 @@
     function addItem() {
       const itemIdInput = document.getElementById('itemId');
       const quantityInput = document.getElementById('quantity');
-      const itemNotesInput = document.getElementById('itemNotes'); // Get item notes
+      const itemNotesInput = document.getElementById('itemNotes');
 
       const inputVal = itemIdInput.value.trim();
       const quantity = parseInt(quantityInput.value);
-      const itemNotes = itemNotesInput.value.trim(); // Get item notes value
+      const itemNotes = itemNotesInput.value.trim();
 
       console.log('addItem called with inputVal:', inputVal, 'quantity:', quantity, 'itemNotes:', itemNotes);
 
       if (!inputVal) {
-        showMessage('Please enter an Item ID or select from the list.', 'error');
+        showMessage('Please enter an Item ID or name.', 'error');
         return;
       }
       if (isNaN(quantity) || quantity <= 0) {
@@ -560,54 +566,46 @@
         return;
       }
 
-      let selectedItem = null;
+      let itemId = inputVal;
+      let itemName = inputVal; // Default to using the input as both ID and name
 
-      // Normalize the input value for comparison
+      // Try to find matching item from the available list
       const normalizedInputVal = normalizeString(inputVal);
-
-      // Try to find by combined normalized string
-      selectedItem = availableItemDetails.find(item => {
+      
+      const selectedItem = availableItemDetails.find(item => {
         const normalizedItemCombined = normalizeString(`${item.id} - ${item.name}`);
-        return normalizedItemCombined === normalizedInputVal;
+        const normalizedItemId = normalizeString(item.id);
+        const normalizedItemName = normalizeString(item.name);
+        
+        return normalizedItemCombined === normalizedInputVal || 
+               normalizedItemId === normalizedInputVal ||
+               normalizedItemName === normalizedInputVal;
       });
 
-      // If not found, try to find by pure ID (normalized)
-      if (!selectedItem) {
-          selectedItem = availableItemDetails.find(item => normalizeString(item.id) === normalizedInputVal);
-      }
-      
-      if (!selectedItem) {
-          showMessage('Invalid Item ID or Name. Please select from the list or enter a valid ID.', 'error');
-          console.error('No matching item found for input:', inputVal);
-          return;
+      // If we found a match in the available items, use the proper ID and name
+      if (selectedItem) {
+        itemId = selectedItem.id;
+        itemName = selectedItem.name;
       }
 
-      const itemId = selectedItem.id;
-      const itemName = selectedItem.name;
-
-      console.log('Item selected for adding:', { itemId, itemName, quantity, itemNotes }); // Log itemNotes
-
-      // When adding, if the item already exists, we should add notes to the existing item's notes,
-      // or create a new entry if the notes are different. For simplicity, let's allow multiple entries
-      // for the same item ID if the notes are different, or combine if notes are identical.
-      // For now, let's just add it as a new line if notes are different, or update qty if notes are same.
+      console.log('Item selected for adding:', { itemId, itemName, quantity, itemNotes });
 
       const existingItemIndex = items.findIndex(item => 
-        item.itemId === itemId && item.itemNotes === itemNotes // Match by ID AND notes
+        item.itemId === itemId && item.itemNotes === itemNotes
       );
 
       if (existingItemIndex > -1) {
         items[existingItemIndex].qty += quantity;
         showMessage(`Updated quantity for ${itemName} (${itemId}) with same notes.`, 'info');
       } else {
-        items.push({ itemId, itemName, qty: quantity, itemNotes: itemNotes }); // Store itemNotes
+        items.push({ itemId, itemName, qty: quantity, itemNotes: itemNotes });
         showMessage(`Added ${itemName} (${itemId}) (Qty: ${quantity}).`, 'success');
       }
 
       renderAddedItems();
       itemIdInput.value = '';
       quantityInput.value = '1';
-      itemNotesInput.value = ''; // Clear item notes input
+      itemNotesInput.value = '';
     }
 
     function removeItem(button) {
